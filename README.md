@@ -1,2 +1,2 @@
-# cdt
+# CDT
 Constrained Delaunay Triangulation
