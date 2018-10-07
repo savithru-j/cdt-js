@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html>
+<head>
+<link rel="stylesheet" href="styles.css">
+<script src="cdt.js"></script>
+</head>
+<body>
+
+<p>Choose vertex file: 
+<input type="file" id="filevertex" onChange="readVertices()"/>
+
+<p>Choose edge file: 
+<input type="file" id="filevertex"/>
+
+<p>
+<button id="btnloadvertices" onClick="loadVertices()">Load vertices</button>
+<button id="btnloadedges">Load constrained edges</button>
+<button id="btntriangulate">Triangulate!</button>
+
+<br>
+
+
+<br>
+<canvas id="main_canvas" width="600" height="600"
+style="border:2px solid #000000;" onMouseMove="displayCoordinates(this,event)">
+</canvas>
+<p><div id="coorddisplay">Coordinates: (0,0)</div>
+
+<span>
+<p><span class="block" id="vertexinfo" style="width:420px"> Vertex list: </span>
+<span class="block" id="edgeinfo"> Constrained edge list: </span>
+<p><textarea id="txtvertices" rows="10" cols="50">
+0 0
+1 0
+1 1
+0 1
+</textarea>
+</span>
+
+<span>
+<textarea id="txtedges" rows="10" cols="50">
+</textarea></p>
+</span
+
+</body>
+</html>
