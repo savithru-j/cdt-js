@@ -17,6 +17,7 @@ function readVertices()
       reader.readAsText(file, "UTF-8");
       reader.onload = function (evt) {
           document.getElementById("txtvertices").innerHTML = evt.target.result;
+          loadVertices();
       }
       reader.onerror = function (evt) {
           document.getElementById("txtvertices").innerHTML = "Error reading file!";
@@ -65,6 +66,25 @@ function loadVertices()
   drawVertices();
 }
 
+function genRandVertices()
+{
+  var txt = document.getElementById("txtnumrandvertex");
+  if (txt.value < 3)
+  {
+    alert("Require at least 3 vertices.");
+    return;
+  }
+  
+  var txtvertices = document.getElementById("txtvertices");
+  txtvertices.innerHTML = "";
+  for (let i = 0; i < txt.value; i++)
+  {
+    txtvertices.innerHTML += Math.random() + ", " + Math.random() + "\n";
+  }
+  
+  loadVertices();    
+}
+
 function resizeWindow()
 {
   var main_canvas = document.getElementById("main_canvas");
@@ -79,7 +99,7 @@ function resizeWindow()
 function transformCoord(coord)
 {
   var x = (coord.x - min_coord.x + 0.1*screenL) / (1.2*screenL) * main_width ;
-  var y = (coord.y - min_coord.y + 0.1*screenL) / (1.2*screenL) * main_height;
+  var y = main_height - (coord.y - min_coord.y + 0.1*screenL) / (1.2*screenL) * main_height;
   
   return {x:x, y:y};
 }
@@ -87,7 +107,7 @@ function transformCoord(coord)
 function invTransformCoord(coord)
 {
   var x = coord.x*1.2*screenL/main_width + min_coord.x - 0.1*screenL;
-  var y = coord.y*1.2*screenL/main_height + min_coord.y - 0.1*screenL;
+  var y = (main_height - coord.y)*1.2*screenL/main_height + min_coord.y - 0.1*screenL;
   
   return {x:x, y:y};
 }
@@ -119,4 +139,75 @@ function displayCoordinates(canvas,e)
   var coord = invTransformCoord(screen_coord);
   //console.log(rect.left + ", " + rect.top);
   document.getElementById("coorddisplay").innerHTML = "Coordinates: (" + coord.x.toFixed(3) + ", " + coord.y.toFixed(3) + ")";
+}
+
+function triangulate()
+{
+  var nVertex = vertex_list.length; 
+  if (nVertex === 0)
+    return;
+  
+  var nBinsX = Math.round(Math.pow(nVertex, 0.25));
+  var nBins = nBinsX*nBinsX;
+  
+  //Compute scaled vertex coordinates and assign each vertex to a bin
+  var scaledverts = [];
+  var bin_index = [];
+  for(let i = 0; i < nVertex; i++)
+  {
+    let scaled_x = (vertex_list[i].x - min_coord.x)/screenL;
+    let scaled_y = (vertex_list[i].y - min_coord.y)/screenL;
+    scaledverts.push({x:scaled_x, y:scaled_y});
+
+    
+    let ind_i = Math.round((nBinsX-1)*scaled_x);
+    let ind_j = Math.round((nBinsX-1)*scaled_y);
+    
+    let bin_id;
+    if (ind_j % 2 === 0)
+    {
+      bin_id = ind_j*nBinsX + ind_i;
+    }
+    else
+    {
+      bin_id = (ind_j+1)*nBinsX - ind_i - 1;
+    }
+    bin_index.push({ind:i,bin:bin_id});
+    
+    console.log("i: " + i + ": " + scaled_x.toFixed(3) + ", " + scaled_y.toFixed(3) + ", ind: " + ind_i + ", " + ind_j + ", bin:" + bin_id);
+  }
+  
+  console.log("nBins: " + nBins);
+  
+  //Add super-triangle vertices (far away)
+  var D = 5.0;
+  scaledverts.push({x:-D, y:-D});
+  scaledverts.push({x:D, y:-D});
+  scaledverts.push({x:0.0, y:D});
+  
+  ///*
+  vertex_list = scaledverts;
+  min_coord = {x:-D,y:-D};
+  max_coord = {x:D,y:D};
+  screenL = 2.0*D;
+  //*/
+  
+  drawVertices();
+  
+  //Sort the vertices in ascending bin order
+  bin_index.sort(binSorter);
+  
+  for(let i = 0; i < bin_index.length; i++)
+  {
+    console.log("i: " + bin_index[i].ind + ", " + bin_index[i].bin);
+  }
+  
+}
+
+function binSorter(a, b) {
+	if (a.bin == b.bin) {
+		return 0;
+	} else {
+		return a.bin < b.bin ? -1 : 1;
+	}
 }

@@ -7,33 +7,28 @@
 <body>
 
 <p>Choose vertex file: 
-<input type="file" id="filevertex" onChange="readVertices()"/>
+<input type="file" id="filevertex" onChange="readVertices()">
 
 <p>Choose edge file: 
 <input type="file" id="filevertex"/>
 
 <p>
-<button id="btnloadvertices" onClick="loadVertices()">Load vertices</button>
-<button id="btnloadedges">Load constrained edges</button>
-<button id="btntriangulate">Triangulate!</button>
+<!-- <button id="btnloadvertices" onClick="loadVertices()">Load vertices from file</button>
+<button id="btnloadedges">Load constrained edges from file</button> -->
 
-<br>
-
-
-<br>
-<canvas id="main_canvas" width="600" height="600"
-style="border:2px solid #000000;" onMouseMove="displayCoordinates(this,event)">
-</canvas>
-<p><div id="coorddisplay">Coordinates: (0,0)</div>
+<p><button id="btngenrandomvertex" onClick="genRandVertices()">Generate random vertices</button>
+Count: <input type="number" id="txtnumrandvertex" min="3" step="10" value="100">
 
 <span>
-<p><span class="block" id="vertexinfo" style="width:420px"> Vertex list: </span>
-<span class="block" id="edgeinfo"> Constrained edge list: </span>
-<p><textarea id="txtvertices" rows="10" cols="50">
+<p><span class="block" id="vertexinfo" style="width:420px"> Vertex list:</span>
+<span class="block" id="edgeinfo"> Constrained edge list:</span>
+<br><textarea id="txtvertices" rows="10" cols="50">
 0 0
-1 0
+2 0
 1 1
-0 1
+0 3
+1.5 2
+3 0.5
 </textarea>
 </span>
 
@@ -41,6 +36,20 @@ style="border:2px solid #000000;" onMouseMove="displayCoordinates(this,event)">
 <textarea id="txtedges" rows="10" cols="50">
 </textarea></p>
 </span
+
+<br>
+<hr>
+<button id="btntriangulate" style="height:40px;width:100px" onClick="triangulate()">Triangulate!</button>
+
+<br>
+
+<br>
+<canvas id="main_canvas" width="600" height="600"
+style="border:2px solid #000000;" onMouseMove="displayCoordinates(this,event)">
+</canvas>
+<p><div id="coorddisplay">Coordinates: (0,0)</div>
+
+
 
 </body>
 </html>
