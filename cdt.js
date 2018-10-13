@@ -3,8 +3,8 @@
 var main_width = 600;
 var main_height = 600;
 
-var min_coord = {x:0,y:0};
-var max_coord = {x:1,y:1};
+var min_coord = new Point(0,0);
+var max_coord = new Point(1,1);
 var screenL = 1.0;
 
 var vertex_list = [];
@@ -36,8 +36,8 @@ function loadVertices()
   document.getElementById("txtedges").innerHTML = "";
   
   vertex_list = [];
-  min_coord = {x:Number.MAX_VALUE ,y:Number.MAX_VALUE};
-  max_coord = {x:-Number.MAX_VALUE ,y:-Number.MAX_VALUE};
+  min_coord = new Point(Number.MAX_VALUE, Number.MAX_VALUE);
+  max_coord = new Point(-Number.MAX_VALUE, -Number.MAX_VALUE);
 
   for(let i = 0; i < txtlines.length; i++)
   {
@@ -76,13 +76,13 @@ function genRandVertices()
   }
   
   var txtvertices = document.getElementById("txtvertices");
-  txtvertices.innerHTML = "";
+  var content = "";
   for (let i = 0; i < txt.value; i++)
   {
-    txtvertices.innerHTML += Math.random() + ", " + Math.random() + "\n";
+    content += Math.random() + ", " + Math.random() + "\n";
   }
-  
-  loadVertices();    
+  txtvertices.innerHTML = content;
+  loadVertices();
 }
 
 function resizeWindow()
@@ -101,7 +101,7 @@ function transformCoord(coord)
   var x = (coord.x - min_coord.x + 0.1*screenL) / (1.2*screenL) * main_width ;
   var y = main_height - (coord.y - min_coord.y + 0.1*screenL) / (1.2*screenL) * main_height;
   
-  return {x:x, y:y};
+  return new Point(x, y);
 }
 
 function invTransformCoord(coord)
@@ -109,7 +109,7 @@ function invTransformCoord(coord)
   var x = coord.x*1.2*screenL/main_width + min_coord.x - 0.1*screenL;
   var y = (main_height - coord.y)*1.2*screenL/main_height + min_coord.y - 0.1*screenL;
   
-  return {x:x, y:y};
+  return new Point(x, y);
 }
 
 function drawVertices()
@@ -135,7 +135,7 @@ function drawVertices()
 function displayCoordinates(canvas,e)
 {
   var rect = canvas.getBoundingClientRect();
-  var screen_coord = {x:(e.clientX - rect.left),y:(e.clientY - rect.top)};
+  var screen_coord = new Point((e.clientX - rect.left),(e.clientY - rect.top));
   var coord = invTransformCoord(screen_coord);
   //console.log(rect.left + ", " + rect.top);
   document.getElementById("coorddisplay").innerHTML = "Coordinates: (" + coord.x.toFixed(3) + ", " + coord.y.toFixed(3) + ")";
@@ -143,7 +143,8 @@ function displayCoordinates(canvas,e)
 
 function triangulate()
 {
-  var nVertex = vertex_list.length; 
+  var nVertex = vertex_list.length;
+  console.log("nVertex: " + nVertex);
   if (nVertex === 0)
     return;
   
@@ -174,7 +175,7 @@ function triangulate()
     }
     bin_index.push({ind:i,bin:bin_id});
     
-    console.log("i: " + i + ": " + scaled_x.toFixed(3) + ", " + scaled_y.toFixed(3) + ", ind: " + ind_i + ", " + ind_j + ", bin:" + bin_id);
+    //console.log("i: " + i + ": " + scaled_x.toFixed(3) + ", " + scaled_y.toFixed(3) + ", ind: " + ind_i + ", " + ind_j + ", bin:" + bin_id);
   }
   
   console.log("nBins: " + nBins);
@@ -186,6 +187,10 @@ function triangulate()
   scaledverts.push({x:0.0, y:D});
   
   ///*
+  var prev_min_coord = min_coord;
+  var prev_max_coord = max_coord;
+  var prev_screenL = screenL;
+  
   vertex_list = scaledverts;
   min_coord = {x:-D,y:-D};
   max_coord = {x:D,y:D};
@@ -197,17 +202,54 @@ function triangulate()
   //Sort the vertices in ascending bin order
   bin_index.sort(binSorter);
   
-  for(let i = 0; i < bin_index.length; i++)
-  {
-    console.log("i: " + bin_index[i].ind + ", " + bin_index[i].bin);
-  }
+  //for(let i = 0; i < bin_index.length; i++)
+  //  console.log("i: " + bin_index[i].ind + ", " + bin_index[i].bin);
   
+  var triangle_list = [{v0:nVertex, v1:(nVertex+1), v2:(nVertex+2)}];
+  
+  var triangulationData = {vertices:scaledverts, bins:bin_index, triangles:triangle_list};
+
+  var p = new Point(2,3);
+  delaunay(triangulationData);
+  
+  //Clean up
+  vertex_list.splice(-3,3);
+  min_coord = prev_min_coord;
+  max_coord = prev_max_coord;
+  screenL = prev_screenL;
+  
+  var p1 = new Point(0,0);
+  var p2 = new Point(2,0);
+  var p3 = new Point(0,2);
+  var p = new Point(-0.1, -0.1);
+  console.log(barycentericCoordTriangle(p, p1, p2, p3));
 }
 
-function binSorter(a, b) {
+function binSorter(a, b) 
+{
 	if (a.bin == b.bin) {
 		return 0;
 	} else {
 		return a.bin < b.bin ? -1 : 1;
 	}
 }
+
+//Function for computing the unconstrained Delaunay triangulation
+function delaunay(triangulationData)
+{
+  var verts = triangulationData.vertices;
+  var N = verts.length - 3; //vertices includes super triangle nodes
+  
+  var ind_tri_start = 0; //points to the super-triangle
+  for (let i = 0; i < N; i++)
+  {
+    var ind_tri = findEnclosingTriangle(i, triangulationData, ind_tri_start);
+  }
+}
+
+function findEnclosingTriangle(ind_vert, triangulationData, ind_tri_start)
+{
+
+}
+
+
