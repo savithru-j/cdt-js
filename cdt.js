@@ -44,7 +44,7 @@ function loadVertices()
     if (txtlines[i].length > 0)
     {
       let coords = txtlines[i].split(/[ ,]+/);
-      vertex_list.push({x:coords[0], y:coords[1]});
+      vertex_list.push(new Point(coords[0], coords[1]));
       //document.getElementById("txtedges").innerHTML += vertex_list[vertex_list.length - 1].y + "\n";
       
       min_coord.x = Math.min(min_coord.x, coords[0]);
@@ -100,7 +100,6 @@ function transformCoord(coord)
 {
   var x = (coord.x - min_coord.x + 0.1*screenL) / (1.2*screenL) * main_width ;
   var y = main_height - (coord.y - min_coord.y + 0.1*screenL) / (1.2*screenL) * main_height;
-  
   return new Point(x, y);
 }
 
@@ -158,8 +157,7 @@ function triangulate()
   {
     let scaled_x = (vertex_list[i].x - min_coord.x)/screenL;
     let scaled_y = (vertex_list[i].y - min_coord.y)/screenL;
-    scaledverts.push({x:scaled_x, y:scaled_y});
-
+    scaledverts.push(new Point(scaled_x, scaled_y));
     
     let ind_i = Math.round((nBinsX-1)*scaled_x);
     let ind_j = Math.round((nBinsX-1)*scaled_y);
@@ -181,21 +179,20 @@ function triangulate()
   console.log("nBins: " + nBins);
   
   //Add super-triangle vertices (far away)
-  var D = 5.0;
-  scaledverts.push({x:-D, y:-D});
-  scaledverts.push({x:D, y:-D});
-  scaledverts.push({x:0.0, y:D});
-  
-  ///*
+  var D = 3.0;
+  scaledverts.push(new Point(-D+0.5, -D+0.5));
+  scaledverts.push(new Point(D+0.5, -D+0.5));
+  scaledverts.push(new Point(0.5, D+0.5));
+   
   var prev_min_coord = min_coord;
   var prev_max_coord = max_coord;
   var prev_screenL = screenL;
+  var prev_vertex_list = vertex_list;
   
   vertex_list = scaledverts;
-  min_coord = {x:-D,y:-D};
-  max_coord = {x:D,y:D};
+  min_coord = new Point(-D+0.5,-D+0.5);
+  max_coord = new Point(D+0.5,D+0.5);
   screenL = 2.0*D;
-  //*/
   
   drawVertices();
   
@@ -205,24 +202,28 @@ function triangulate()
   //for(let i = 0; i < bin_index.length; i++)
   //  console.log("i: " + bin_index[i].ind + ", " + bin_index[i].bin);
   
-  var triangle_list = [{v0:nVertex, v1:(nVertex+1), v2:(nVertex+2)}];
+  var triangle_list = [[nVertex, (nVertex+1), (nVertex+2)]];
+  var adjacency = [[-1, -1, -1]];
   
-  var triangulationData = {vertices:scaledverts, bins:bin_index, triangles:triangle_list};
+  var triangulationData = 
+  {
+    vert: scaledverts, 
+    bin: bin_index, 
+    tri: triangle_list,
+    adj: adjacency
+  };
 
-  var p = new Point(2,3);
   delaunay(triangulationData);
   
   //Clean up
-  vertex_list.splice(-3,3);
+  vertex_list = prev_vertex_list;
   min_coord = prev_min_coord;
   max_coord = prev_max_coord;
   screenL = prev_screenL;
   
-  var p1 = new Point(0,0);
-  var p2 = new Point(2,0);
-  var p3 = new Point(0,2);
-  var p = new Point(-0.1, -0.1);
-  console.log(barycentericCoordTriangle(p, p1, p2, p3));
+// console.log("min_coord: " + min_coord.x + ", " + min_coord.y);
+// console.log("max_coord: " + max_coord.x + ", " + max_coord.y);
+  
 }
 
 function binSorter(a, b) 
@@ -237,19 +238,93 @@ function binSorter(a, b)
 //Function for computing the unconstrained Delaunay triangulation
 function delaunay(triangulationData)
 {
-  var verts = triangulationData.vertices;
+  var verts = triangulationData.vert;
+  var triangles = triangulationData.tri;
+  var adjacency = triangulationData.adj;
+  
   var N = verts.length - 3; //vertices includes super triangle nodes
   
   var ind_tri_start = 0; //points to the super-triangle
   for (let i = 0; i < N; i++)
   {
     var ind_tri = findEnclosingTriangle(i, triangulationData, ind_tri_start);
+    console.log("ind_tri: " + ind_tri);
+    
+    if (ind_tri === -1)
+      throw "Could not find a triangle containing the new vertex!";
+      
+    var cur_tri = triangles[ind_tri]; //vertex indices of triangle containing new point
+    var new_tri0 = [cur_tri[0], cur_tri[1], i];
+    var new_tri1 = [i, cur_tri[1], cur_tri[2]];
+    var new_tri2 = [cur_tri[0], i, cur_tri[2]];
+    
+    //Replace the triangle containing the point with new_tri0, and
+    //fix its adjacency
+    triangles[ind_tri] = new_tri0;
+
+    var N_tri = triangles.length;
+    var cur_tri_adj = adjacency[ind_tri]; //neighbors of cur_tri
+    adjacency[ind_tri] = [N_tri, N_tri+1, cur_tri_adj[2]];
+    
+    //Add the other two new triangles to the list
+    triangles.push(new_tri1); //triangle index N_tri
+    triangles.push(new_tri2); //triangle index (N_tri+1)
+    
+    adjacency.push([cur_tri_adj[0], N_tri+1, ind_tri]); //adj for triangle N_tri
+    adjacency.push([N_tri, cur_tri_adj[1], ind_tri]); //adj for triangle (N_tri+1)
+  
+    if (cur_tri_adj[0] >= 0) //if triangle N_tri's neighbor exists
+    {
+      //Find the index for cur_tri in the adjacency of the neighbor
+      let neigh_adj_ind = adjacency[cur_tri_adj[0]].indexOf(ind_tri);
+      adjacency[cur_tri_adj[0]][neigh_adj_ind] = N_tri;
+    }
+    
+    if (cur_tri_adj[1] >= 0) //if triangle (N_tri+1)'s neighbor exists
+    {
+      //Find the index for cur_tri in the adjacency of the neighbor
+      let neigh_adj_ind = adjacency[cur_tri_adj[1]].indexOf(ind_tri);
+      adjacency[cur_tri_adj[1]][neigh_adj_ind] = N_tri+1;
+    }
+     
+    ind_tri_start = ind_tri;
   }
 }
 
 function findEnclosingTriangle(ind_vert, triangulationData, ind_tri_start)
 {
-
+  var vertices = triangulationData.vert;
+  var adjacency = triangulationData.adj;
+  var target = vertices[ind_vert];
+  
+  var ind_tri_cur = ind_tri_start;
+  
+  var found_tri = false;
+  while (!found_tri)
+  {
+    if (ind_tri_cur == -1)
+      found_tri; //target is outside the super-triangle
+      
+    var tri_cur = triangulationData.tri[ind_tri_cur];
+    
+    var bary_coord = barycentericCoordTriangle(target, 
+                       vertices[tri_cur[0]],  vertices[tri_cur[1]], vertices[tri_cur[2]]);
+                       
+    if (bary_coord.s < 0.0)
+      ind_tri_cur = adjacency[ind_tri_cur][1]; //should move to the triangle opposite edge1
+    else if (bary_coord.t < 0.0)
+      ind_tri_cur = adjacency[ind_tri_cur][2]; //should move to the triangle opposite edge2
+    else if (bary_coord.u < 0.0)
+      ind_tri_cur = adjacency[ind_tri_cur][0]; //should move to the triangle opposite edge0
+    else if (bary_coord.s >= 0.0 && 
+             bary_coord.t >= 0.0 && 
+             bary_coord.u >= 0.0)
+    {
+      found_tri = true;
+    }            
+  }
+                     
+  return ind_tri_cur;
 }
 
 
