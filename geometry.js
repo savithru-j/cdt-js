@@ -20,6 +20,16 @@ class Point
   {
     return new Point(this.x - p1.x, this.y - p1.y);
   }
+  
+  sqDistanceTo(p1)
+  {
+    return (this.x - p1.x)*(this.x - p1.x) + (this.y - p1.y)*(this.y - p1.y);
+  }
+  
+  toStr()
+  {
+    return "(" + this.x.toFixed(3) + ", " + this.y.toFixed(3) + ")";
+  }
 }
 
 function barycentericCoordTriangle(p, pt0, pt1, pt2)

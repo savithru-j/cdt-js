@@ -1,3 +1,36 @@
 span.block {
     display: inline-block;
 }
+
+div.block {
+    display: inline-block;
+    vertical-align: text-top;
+}
+
+div.canvas {
+  border: 1.5px solid #444444;
+  width: 600px;
+  height: 600px;
+}
+
+div.log {
+  border: 1px solid #444444;
+  width: 500px;
+  height: 189px;
+  padding-top: 5px;
+  padding-right: 5px; 
+  padding-bottom: 5px;
+  padding-left: 5px;
+  margin-bottom: 5px;
+  overflow-y: scroll;
+}
+
+div.info {
+  border: 1px solid #444444;
+  width: 500px;
+  height: 390px;
+  padding-top: 5px;
+  padding-right: 5px; 
+  padding-bottom: 0px;
+  padding-left: 5px;
+}

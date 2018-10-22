@@ -38,15 +38,29 @@ Count: <input type="number" id="txtnumrandvertex" min="3" step="10" value="5">
 
 <br>
 <hr>
-<button id="btntriangulate" style="height:40px;width:100px" onClick="triangulate()">Triangulate!</button>
+<button id="btntriangulate" style="height:40px;width:150px" onClick="triangulate()">Triangulate!</button>
 
 <br>
 
 <br>
-<canvas id="main_canvas" width="600" height="600"
-style="border:2px solid #000000;" onMouseMove="displayCoordinates(this,event)">
+
+<div class="block canvas">
+<canvas id="main_canvas" width="600" height="600" onMouseMove="displayCoordinates(this,event)" onClick="displayTriangulationInfo(this,event)">
 </canvas>
-<p><div id="coorddisplay">Coordinates: (0,0)</div>
+</div>
+<div class="block">
+  <div class="log" id="div_log">
+    <b>Log</b>
+    <br><br>
+  </div>
+  <div class="info">
+    <div id="coorddisplay"><b>Coordinates:</b> (0,0)</div>
+    <br>
+    <div id="div_info"></div>
+  </div>
+</div>
+
+<p>
 
 
 
