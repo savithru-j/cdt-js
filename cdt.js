@@ -380,7 +380,7 @@ function triangulate()
   console.log("nBins: " + nBins);
   
   //Add super-triangle vertices (far away)
-  const D = 100.0;
+  const D = 1000.0;
   scaledverts.push(new Point(-D+0.5, -D+0.5));
   scaledverts.push(new Point(D+0.5, -D+0.5));
   scaledverts.push(new Point(0.5, D+0.5));
@@ -422,6 +422,8 @@ function triangulate()
   t1 = performance.now();
   console.timeEnd("renderTriangulation");
   printToLog("Rendered triangulation in " + (t1 - t0).toFixed(2) + " ms.");
+  
+  printTriangles(globalMeshData);
   
   //Clean up
 /*
@@ -770,4 +772,14 @@ function isDelaunay2(v_tri, p)
     return false;
   else
     return true;
+}
+
+function printTriangles(meshData)
+{
+  var txttri = document.getElementById("txttriangles");
+  var content = "";
+  for (let i = 0; i < meshData.tri.length; i++)
+    content += meshData.tri[i][0] + ", " + meshData.tri[i][1] + ", " + meshData.tri[i][2] + "\n";
+  
+  txttri.innerHTML = content;
 }
