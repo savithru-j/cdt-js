@@ -1,3 +1,6 @@
+// Constrained Delaunay Triangulation code in JavaScript
+// Copyright 2018 Savithru Jayasinghe
+
 'use strict';
 
 var main_width = 600;

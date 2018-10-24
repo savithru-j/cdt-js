@@ -1,3 +1,6 @@
+// Constrained Delaunay Triangulation code in JavaScript
+// Copyright 2018 Savithru Jayasinghe
+
 class Point
 {
   constructor(x,y)
