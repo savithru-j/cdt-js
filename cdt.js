@@ -13,7 +13,8 @@ var globalMeshData =
   scaled_vert: [], 
   bin: [], 
   tri: [],
-  adj: []
+  adj: [],
+  con_edge: []
 };
 
 function readVertices()
@@ -40,11 +41,7 @@ function loadVertices()
   
   var txtlines = txt.value.split("\n");
   
-  //document.getElementById("txtedges").innerHTML = "";
-  
   globalMeshData.vert = [];
-  min_coord = new Point(Number.MAX_VALUE, Number.MAX_VALUE);
-  max_coord = new Point(-Number.MAX_VALUE, -Number.MAX_VALUE);
 
   for(let i = 0; i < txtlines.length; i++)
   {
@@ -53,8 +50,7 @@ function loadVertices()
       let coords_str = txtlines[i].split(/[ ,]+/);
       let coords = [Number(coords_str[0]), Number(coords_str[1])];
       globalMeshData.vert.push(new Point(coords[0], coords[1]));
-      //document.getElementById("txtedges").innerHTML += vertex_list[vertex_list.length - 1].y + "\n";
-      
+
       min_coord.x = Math.min(min_coord.x, coords[0]);
       min_coord.y = Math.min(min_coord.y, coords[1]);
       max_coord.x = Math.max(max_coord.x, coords[0]);
@@ -76,6 +72,43 @@ function loadVertices()
   drawVertices(globalMeshData, true);
 }
 
+
+function loadEdges()
+{
+  var txt = document.getElementById("txtedges");
+  if (txt.value === "Edges...\n")
+    return;
+  
+  var txtlines = txt.value.split("\n");
+  var nVertex = globalMeshData.vert.length;
+  
+  globalMeshData.con_edge = [];
+
+  for(let i = 0; i < txtlines.length; i++)
+  {
+    if (txtlines[i].length > 0)
+    {
+      let edges_str = txtlines[i].split(/[ ,]+/);
+      let edges = [Number(edges_str[0]), Number(edges_str[1])];
+      
+      if (edges[0] < 0 || edges[0] >= nVertex ||
+          edges[1] < 0 || edges[1] >= nVertex)
+      {
+        alert("Edge vertex indices need to be non-negative and less than the number of input vertices.");
+        return;
+      }
+      
+      globalMeshData.con_edge.push([edges[0], edges[1]]);
+    }
+  }
+  
+  document.getElementById("edgeinfo").innerHTML = "Constrained edge list: " + globalMeshData.con_edge.length + " edges"
+  
+  printToLog("Loaded " + globalMeshData.con_edge.length + " constrained edges.");
+  
+  //drawVertices(globalMeshData, true);
+}
+
 function genRandVertices()
 {
   var txt = document.getElementById("txtnumrandvertex");
@@ -84,7 +117,7 @@ function genRandVertices()
     alert("Require at least 3 vertices.");
     return;
   }
-  
+
   var txtvertices = document.getElementById("txtvertices");
   var content = "";
   for (let i = 0; i < txt.value; i++)
@@ -92,7 +125,29 @@ function genRandVertices()
     content += Math.random() + ", " + Math.random() + "\n";
   }
   txtvertices.innerHTML = content;
+  txtvertices.value = content;
   loadVertices();
+}
+
+function genRandEdges()
+{
+  var nVertex = globalMeshData.vert.length;
+  if (nVertex == 0)
+  {
+    alert("Require at least 3 vertices.");
+    return;
+  }
+  
+  var txt = document.getElementById("txtnumrandedges");
+  var txtedges = document.getElementById("txtedges");
+  var content = "";
+  for (let i = 0; i < txt.value; i++)
+  {
+    content += Math.floor(nVertex*Math.random()) + ", " + Math.floor(nVertex*Math.random()) + "\n";
+  }
+  txtedges.innerHTML = content;
+  txtedges.value = content;
+  loadEdges();
 }
 
 function resizeWindow()
@@ -432,7 +487,7 @@ function triangulate()
   screenL = prev_screenL;
 */
   
-  globalMeshData.vert.splice(-3,3); //delete super-triangle nodes
+  //globalMeshData.vert.splice(-3,3); //delete super-triangle nodes
   
   //printToLog("Click on a triangle or vertex for more info...<br/>");
   document.getElementById("div_info").innerHTML = "Click on a triangle or vertex for more info...";
@@ -728,6 +783,10 @@ function removeBoundaryTriangles(meshData)
   for (let i = 0; i < adjacency.length; i++)
     for (let j = 0; j < 3; j++)
       adjacency[i][j] = indmap[adjacency[i][j]];
+      
+  //Delete super-triangle nodes
+  meshData.scaled_vert.splice(-3,3);
+  meshData.vert.splice(-3,3);
 }
 
 function isDelaunay(v_tri, p)
