@@ -86,25 +86,32 @@ function loadEdges()
   {
     if (txtlines[i].length > 0)
     {
-      let edges_str = txtlines[i].split(/[ ,]+/);
-      let edges = [Number(edges_str[0]), Number(edges_str[1])];
+      let edge_str = txtlines[i].split(/[ ,]+/);
+      let edge = [Number(edge_str[0]), Number(edge_str[1])];
       
-      if (edges[0] < 0 || edges[0] >= nVertex ||
-          edges[1] < 0 || edges[1] >= nVertex)
+      if (edge[0] < 0 || edge[0] >= nVertex ||
+          edge[1] < 0 || edge[1] >= nVertex)
       {
         alert("Vertex indices of edge " + i + " need to be non-negative and less than the number of input vertices.");
         globalMeshData.con_edge = [];
         break;
       }
       
-      if (edges[0] === edges[1])
+      if (edge[0] === edge[1])
       {
         alert("Edge " + i + " is degenerate!");
         globalMeshData.con_edge = [];
         break;
       }
       
-      globalMeshData.con_edge.push([edges[0], edges[1]]);
+      if (!isEdgeValid(edge, globalMeshData.con_edge, globalMeshData.vert))
+      {
+        alert("Edge " + i + " already exists or intersects with an existing edge!");
+        globalMeshData.con_edge = [];
+        break;
+      }
+      
+      globalMeshData.con_edge.push([edge[0], edge[1]]);
     }
   }
   
@@ -147,6 +154,12 @@ function genRandVertices()
   }
   txtvertices.innerHTML = content;
   txtvertices.value = content;
+  
+  //Clear any previous edges
+  var txtedges = document.getElementById("txtedges");
+  txtedges.innerHTML = "";
+  txtedges.value = "";
+  
   loadInputData();
 }
 
@@ -169,24 +182,50 @@ function genRandEdges()
     return;
   }
   
-  var vert_ind = [];
-  while (vert_ind.length < txt.value)
+  var edge_list = [];
+  var maxIter = 5*nEdgeMax;
+  var iter = 0;
+  while (edge_list.length < txt.value && iter < maxIter)
   {
-    let tmp_edge = [Math.floor(nVertex*Math.random()), Math.floor(nVertex*Math.random())];
+    iter++;
+    let new_edge = [Math.floor(nVertex*Math.random()), Math.floor(nVertex*Math.random())];
     
-    if (tmp_edge[0] === tmp_edge[1])
+    if (new_edge[0] === new_edge[1])
+      continue;
+      
+    if (!isEdgeValid(new_edge, edge_list, globalMeshData.vert))
       continue;
     
-    vert_ind.push(tmp_edge);
+    edge_list.push(new_edge);
   }
   
   var content = "";
-  for (let i = 0; i < vert_ind.length; i++)
-    content += vert_ind[i][0] + ", " + vert_ind[i][1] + "\n";
+  for (let i = 0; i < edge_list.length; i++)
+    content += edge_list[i][0] + ", " + edge_list[i][1] + "\n";
 
   txtedges.innerHTML = content;
   txtedges.value = content;
   loadInputData();
+}
+
+function isEdgeValid(newEdge, edgeList, vertices)
+{
+  var new_edge_verts = [vertices[newEdge[0]], vertices[newEdge[1]]];
+  
+  for (let i = 0; i < edgeList.length; i++)
+  {
+    //Not valid if edge already exists
+    if ( (edgeList[i][0] == newEdge[0] && edgeList[i][1] == newEdge[1]) ||
+         (edgeList[i][0] == newEdge[1] && edgeList[i][1] == newEdge[0]) )
+      return false;
+      
+    let edge_verts = [vertices[edgeList[i][0]], vertices[edgeList[i][1]]];
+    
+    if (isEdgeIntersecting(edge_verts, new_edge_verts))
+      return false;
+  }
+  
+  return true;
 }
 
 function resizeWindow()
@@ -540,16 +579,6 @@ function triangulate()
   
   printTriangles(globalMeshData);
   
-  //Clean up
-/*
-  min_coord = prev_min_coord;
-  max_coord = prev_max_coord;
-  screenL = prev_screenL;
-*/
-  
-  //globalMeshData.vert.splice(-3,3); //delete super-triangle nodes
-  
-  //printToLog("Click on a triangle or vertex for more info...<br/>");
   document.getElementById("div_info").innerHTML = "Click on a triangle or vertex for more info...";
 }
 
