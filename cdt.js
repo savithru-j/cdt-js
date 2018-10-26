@@ -68,11 +68,6 @@ function loadVertices()
   console.log("screenL: " + screenL);
   
   document.getElementById("vertexinfo").innerHTML = "Vertex list: " + globalMeshData.vert.length + " vertices"
-  
-  printToLog("Loaded " + globalMeshData.vert.length + " vertices.");
-  
-  resizeWindow();  
-  drawVertices(globalMeshData, true);
 }
 
 
@@ -97,8 +92,16 @@ function loadEdges()
       if (edges[0] < 0 || edges[0] >= nVertex ||
           edges[1] < 0 || edges[1] >= nVertex)
       {
-        alert("Edge vertex indices need to be non-negative and less than the number of input vertices.");
-        return;
+        alert("Vertex indices of edge " + i + " need to be non-negative and less than the number of input vertices.");
+        globalMeshData.con_edge = [];
+        break;
+      }
+      
+      if (edges[0] === edges[1])
+      {
+        alert("Edge " + i + " is degenerate!");
+        globalMeshData.con_edge = [];
+        break;
       }
       
       globalMeshData.con_edge.push([edges[0], edges[1]]);
@@ -106,10 +109,25 @@ function loadEdges()
   }
   
   document.getElementById("edgeinfo").innerHTML = "Constrained edge list: " + globalMeshData.con_edge.length + " edges"
+}
+
+function loadInputData()
+{
+  loadVertices();
+  loadEdges();
   
-  printToLog("Loaded " + globalMeshData.con_edge.length + " constrained edges.");
+  printToLog("Loaded " + globalMeshData.vert.length + " vertices and " +
+             globalMeshData.con_edge.length + " constrained edges.");
+
+  resizeWindow();  
+  var canvas = document.getElementById("main_canvas");
+  var ctx = canvas.getContext("2d");
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+    
+  globalMeshData.tri = [];
+  globalMeshData.adj = [];
   
-  //drawVertices(globalMeshData, true);
+  renderTriangulation(globalMeshData);
 }
 
 function genRandVertices()
@@ -129,7 +147,7 @@ function genRandVertices()
   }
   txtvertices.innerHTML = content;
   txtvertices.value = content;
-  loadVertices();
+  loadInputData();
 }
 
 function genRandEdges()
@@ -143,14 +161,32 @@ function genRandEdges()
   
   var txt = document.getElementById("txtnumrandedges");
   var txtedges = document.getElementById("txtedges");
-  var content = "";
-  for (let i = 0; i < txt.value; i++)
+  
+  var nEdgeMax = nVertex*(nVertex - 1) / 2;
+  if (txt.value > nEdgeMax)
   {
-    content += Math.floor(nVertex*Math.random()) + ", " + Math.floor(nVertex*Math.random()) + "\n";
+    alert("The maximum number of constrained edges possible between " + nVertex + " points is " + nEdgeMax + ".");
+    return;
   }
+  
+  var vert_ind = [];
+  while (vert_ind.length < txt.value)
+  {
+    let tmp_edge = [Math.floor(nVertex*Math.random()), Math.floor(nVertex*Math.random())];
+    
+    if (tmp_edge[0] === tmp_edge[1])
+      continue;
+    
+    vert_ind.push(tmp_edge);
+  }
+  
+  var content = "";
+  for (let i = 0; i < vert_ind.length; i++)
+    content += vert_ind[i][0] + ", " + vert_ind[i][1] + "\n";
+
   txtedges.innerHTML = content;
   txtedges.value = content;
-  loadEdges();
+  loadInputData();
 }
 
 function resizeWindow()
@@ -187,13 +223,11 @@ function invTransformCoord(coord)
   return new Point(x, y);
 }
 
-function drawVertices(meshData, clearCanvas)
+function drawVertices(meshData)
 {
   var canvas = document.getElementById("main_canvas");
   var ctx = canvas.getContext("2d");
   
-  if (clearCanvas)
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
   ctx.fillStyle = "#222222";
   
   ctx.beginPath();
@@ -205,6 +239,33 @@ function drawVertices(meshData, clearCanvas)
   ctx.closePath();
 }
 
+function drawEdges(meshData)
+{
+  var canvas = document.getElementById("main_canvas");
+  var ctx = canvas.getContext("2d");
+  ctx.strokeStyle = "#FF7777";
+  ctx.lineWidth = 3;
+  
+  var verts = meshData.vert;
+  var edges = meshData.con_edge;
+  
+  for(let iedge = 0; iedge < edges.length; iedge++)
+  {   
+    let v0 = verts[edges[iedge][0]];
+    let v1 = verts[edges[iedge][1]];
+    
+    let canvas_coord = transformCoord(v0);
+    
+    ctx.beginPath();
+    ctx.moveTo(canvas_coord.x,canvas_coord.y);   
+    canvas_coord = transformCoord(v1);
+    ctx.lineTo(canvas_coord.x,canvas_coord.y);
+    ctx.closePath();
+    ctx.stroke();
+  }
+  
+}
+
 function renderTriangulation(meshData)
 {
   var canvas = document.getElementById("main_canvas");
@@ -214,11 +275,9 @@ function renderTriangulation(meshData)
   var verts = meshData.vert;
   var triangles = meshData.tri;
   
-  //ctx.fillStyle = "#FFFFFF";
-  //ctx.fillRect(0,0,canvas.width,canvas.height);
   ctx.fillStyle = "#EEEEEE";
   ctx.strokeStyle = "#777777";
-  ctx.lineWidth   = 1;
+  ctx.lineWidth = 1;
   
   for(let itri = 0; itri < triangles.length; itri++)
   {
@@ -240,15 +299,8 @@ function renderTriangulation(meshData)
     ctx.stroke();
   }
 
+  drawEdges(meshData);
   drawVertices(meshData, false);
-/*
-  ctx.fillStyle = "#111111";
-  for(let i = 0; i < verts.length; i++)
-  {
-    let canvas_coord = transformCoord(verts[i]);
-    ctx.fillRect(canvas_coord.x-2,canvas_coord.y-2,4,4);
-  }
-*/
 }
 
 function drawPath(path)
@@ -261,7 +313,7 @@ function drawPath(path)
   
   ctx.strokeStyle = "#7777FF";
   ctx.fillStyle = "#1111FF";
-  ctx.lineWidth   = 1;
+  ctx.lineWidth = 1;
     
   ctx.beginPath();
   let canvas_coord = transformCoord(path[0]);
@@ -300,6 +352,8 @@ function displayTriangulationInfo(canvas,e)
   
   renderTriangulation(globalMeshData);
   ctx.fillStyle = "#FF0000";
+  ctx.strokeStyle = "#777777";
+  ctx.lineWidth = 1;
   
   var foundVertex = false;
   for (let i = 0; i < verts.length; i++)
@@ -389,6 +443,9 @@ function displayTriangulationInfo(canvas,e)
       "<br>&nbsp &nbsp Adjacent triangles: " + adj_str;
       
       foundTriangle = true;
+      
+      drawEdges(globalMeshData);
+      drawVertices(globalMeshData, false);
     }
   }
   
