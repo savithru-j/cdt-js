@@ -82,7 +82,7 @@ function isEdgeIntersecting(edgeA, edgeB)
   //Check if the endpoints of edgeA are on the same side of edgeB
   if ((BxA0 > 0 && BxA1 > 0) || (BxA0 < 0 && BxA1 < 0))
     return false;
-    
+
   //Special case of colinear edges
   if (Math.abs(AxB0) < 1e-14 && Math.abs(AxB1) < 1e-14)
   {
@@ -98,4 +98,12 @@ function isEdgeIntersecting(edgeA, edgeB)
   }
   
   return true;
+}
+
+function isQuadConvex(p0, p1, p2, p3)
+{
+  var diag0 = [p0, p2];
+  var diag1 = [p1, p3];
+  
+  return isEdgeIntersecting(diag0, diag1);
 }

@@ -14,10 +14,11 @@ var globalMeshData =
 {
   vert: [],
   scaled_vert: [], 
-  bin: [], 
+  bin: [],
   tri: [],
   adj: [],
-  con_edge: []
+  con_edge: [],
+  vert_to_tri: []
 };
 
 function readVertices()
@@ -45,12 +46,23 @@ function loadVertices()
   var txtlines = txt.value.split("\n");
   
   globalMeshData.vert = [];
+  
+  min_coord = new Point(Number.MAX_VALUE, Number.MAX_VALUE);
+  max_coord = new Point(-Number.MAX_VALUE, -Number.MAX_VALUE);
 
   for(let i = 0; i < txtlines.length; i++)
   {
     if (txtlines[i].length > 0)
     {
-      let coords_str = txtlines[i].split(/[ ,]+/);
+      let coords_str = txtlines[i].trim().split(/[ ,]+/);
+      
+      if (coords_str.length != 2)
+      {
+        alert("Vertex " + i + " does not have 2 coordinates!");
+        globalMeshData.vert = [];
+        break; 
+      }
+      
       let coords = [Number(coords_str[0]), Number(coords_str[1])];
       globalMeshData.vert.push(new Point(coords[0], coords[1]));
 
@@ -86,7 +98,15 @@ function loadEdges()
   {
     if (txtlines[i].length > 0)
     {
-      let edge_str = txtlines[i].split(/[ ,]+/);
+      let edge_str = txtlines[i].trim().split(/[ ,]+/);
+      
+      if (edge_str.length != 2)
+      {
+        alert("Edge " + i + " does not have 2 node indices!");
+        globalMeshData.con_edge = [];
+        break; 
+      }
+      
       let edge = [Number(edge_str[0]), Number(edge_str[1])];
       
       if (edge[0] < 0 || edge[0] >= nVertex ||
@@ -534,7 +554,7 @@ function triangulate()
   console.log("nBins: " + nBins);
   
   //Add super-triangle vertices (far away)
-  const D = 1000.0;
+  const D = 200.0;
   scaledverts.push(new Point(-D+0.5, -D+0.5));
   scaledverts.push(new Point(D+0.5, -D+0.5));
   scaledverts.push(new Point(0.5, D+0.5));
@@ -553,6 +573,7 @@ function triangulate()
   globalMeshData.bin = bin_index;
   globalMeshData.tri = [[nVertex, (nVertex+1), (nVertex+2)]]; //super-triangle
   globalMeshData.adj = [[-1, -1, -1]]; //adjacency
+  globalMeshData.vert_to_tri = [];
   
 /*
   var prev_min_coord = min_coord;
@@ -569,6 +590,9 @@ function triangulate()
   var t1 = performance.now();
   console.timeEnd("Delaunay");
   printToLog("Computed Delaunay triangulation in " + (t1 - t0).toFixed(2) + " ms.");
+  
+  renderTriangulation(globalMeshData);
+  constrainEdges(globalMeshData);
   
   console.time("renderTriangulation");
   t0 = performance.now();
@@ -734,14 +758,13 @@ function findEnclosingTriangleSlow(target_vertex, meshData, ind_tri_cur)
 {
   var vertices = meshData.scaled_vert;
   var triangles = meshData.tri;
-  var adjacency = meshData.adj;
    
   for (let ind_tri = 0; ind_tri < triangles.length; ind_tri++)
   {
     let tri_cur = triangles[ind_tri];
     let bary_coord = barycentericCoordTriangle(target_vertex, 
                        vertices[tri_cur[0]],  vertices[tri_cur[1]], vertices[tri_cur[2]]);
-                       
+    console.log(bary_coord);                   
     if (bary_coord.s >= 0.0 && bary_coord.t >= 0.0 && bary_coord.u >= 0.0)
     {
       return [ind_tri, ind_tri+1];
@@ -779,58 +802,90 @@ function restoreDelaunay(ind_vert, meshData, stack)
       if (ind_tri_neigh < 0)
         throw "negative index";
       
-      //Find the 0-1-2 index of the outer vertex in the neighboring triangle (which contains the new point)
-      const outernode_tri_neigh = adjacency[ind_tri_neigh].indexOf(ind_tri);
-      
-      const outernode_tri_p1 = (outernode_tri + 1) % 3; //index of node after the outernode
-      const outernode_tri_p2 = (outernode_tri + 2) % 3;
-      
-      const outernode_tri_neigh_p1 = (outernode_tri_neigh + 1) % 3; //index of node after the outernode
-      const outernode_tri_neigh_p2 = (outernode_tri_neigh + 2) % 3;
-      
-      //Swap diagonal
-      triangles[ind_tri][outernode_tri_p2] = triangles[ind_tri_neigh][outernode_tri_neigh];
-      triangles[ind_tri_neigh][outernode_tri_neigh_p2] = triangles[ind_tri][outernode_tri];
-      
-      //Update adjacencies for triangles opposite outernode
-      adjacency[ind_tri][outernode_tri] = adjacency[ind_tri_neigh][outernode_tri_neigh_p1];
-      adjacency[ind_tri_neigh][outernode_tri_neigh] = adjacency[ind_tri][outernode_tri_p1];
-      
-      //Update adjacencies for neighbors of ind_tri
-      const ind_tri_outerp1 = adjacency[ind_tri][outernode_tri_p1];
-      if (ind_tri_outerp1 >= 0)
-      {
-        const neigh_node = adjacency[ind_tri_outerp1].indexOf(ind_tri);
-        adjacency[ind_tri_outerp1][neigh_node] = ind_tri_neigh;
-      }
-      
-      //Update adjacencies for neighbors of ind_tri_neigh
-      const ind_tri_neigh_outerp1 = adjacency[ind_tri_neigh][outernode_tri_neigh_p1];
-      if (ind_tri_neigh_outerp1 >= 0)
-      {
-        const neigh_node = adjacency[ind_tri_neigh_outerp1].indexOf(ind_tri_neigh);
-        adjacency[ind_tri_neigh_outerp1][neigh_node] = ind_tri;
-      }
-      
-      //Update adjacencies for triangles opposite the node after the outernode
-      adjacency[ind_tri][outernode_tri_p1] = ind_tri_neigh;
-      adjacency[ind_tri_neigh][outernode_tri_neigh_p1] = ind_tri;
-      
+      //Swap the diagonal between the adjacent triangles
+      swapDiagonal(meshData, ind_tri, ind_tri_neigh);
+        
       //Add the triangles opposite the new vertex to the stack
-      const ind_tri_outerp2 = adjacency[ind_tri][outernode_tri_p2];
+      const new_node_ind_tri = triangles[ind_tri].indexOf(ind_vert);
+      const ind_tri_outerp2 = adjacency[ind_tri][new_node_ind_tri];
       if (ind_tri_outerp2 >= 0)
       {
         const neigh_node = adjacency[ind_tri_outerp2].indexOf(ind_tri);
         stack.push([ind_tri_outerp2, neigh_node]);
       }
       
-      const ind_tri_neigh_outer = adjacency[ind_tri_neigh][outernode_tri_neigh]; 
+      const new_node_ind_tri_neigh = triangles[ind_tri_neigh].indexOf(ind_vert);
+      const ind_tri_neigh_outer = adjacency[ind_tri_neigh][new_node_ind_tri_neigh]; 
       if (ind_tri_neigh_outer >= 0)
       {
         const neigh_node = adjacency[ind_tri_neigh_outer].indexOf(ind_tri_neigh);
         stack.push([ind_tri_neigh_outer, neigh_node]);
-      }           
-    }
+      }
+      
+    } //is not Delaunay
+  }
+}
+
+//Swaps the diagonal of adjacent triangles A and B
+function swapDiagonal(meshData, ind_triA, ind_triB)
+{
+  var triangles = meshData.tri;
+  var adjacency = meshData.adj;
+  var vert2tri = meshData.vert_to_tri;
+  
+  //Find the node index of the outer vertex in each triangle
+  const outernode_triA = adjacency[ind_triA].indexOf(ind_triB);
+  const outernode_triB = adjacency[ind_triB].indexOf(ind_triA);
+
+  //Indices of nodes after the outernode (i.e. nodes of the common edge)
+  const outernode_triA_p1 = (outernode_triA + 1) % 3;
+  const outernode_triA_p2 = (outernode_triA + 2) % 3;
+
+  const outernode_triB_p1 = (outernode_triB + 1) % 3;
+  const outernode_triB_p2 = (outernode_triB + 2) % 3;
+
+  //Update triangle nodes
+  triangles[ind_triA][outernode_triA_p2] = triangles[ind_triB][outernode_triB];
+  triangles[ind_triB][outernode_triB_p2] = triangles[ind_triA][outernode_triA];
+  
+  //Update adjacencies for triangle opposite outernode
+  adjacency[ind_triA][outernode_triA] = adjacency[ind_triB][outernode_triB_p1];
+  adjacency[ind_triB][outernode_triB] = adjacency[ind_triA][outernode_triA_p1];
+  
+  //Update adjacency of neighbor opposite triangle A's (outernode+1) node
+  const ind_triA_neigh_outerp1 = adjacency[ind_triA][outernode_triA_p1];
+  if (ind_triA_neigh_outerp1 >= 0)
+  {
+    const neigh_node = adjacency[ind_triA_neigh_outerp1].indexOf(ind_triA);
+    adjacency[ind_triA_neigh_outerp1][neigh_node] = ind_triB;
+  }
+  
+  //Update adjacency of neighbor opposite triangle B's (outernode+1) node
+  const ind_triB_neigh_outerp1 = adjacency[ind_triB][outernode_triB_p1];
+  if (ind_triB_neigh_outerp1 >= 0)
+  {
+    const neigh_node = adjacency[ind_triB_neigh_outerp1].indexOf(ind_triB);
+    adjacency[ind_triB_neigh_outerp1][neigh_node] = ind_triA;
+  }
+  
+  //Update adjacencies for triangles opposite the (outernode+1) node
+  adjacency[ind_triA][outernode_triA_p1] = ind_triB;
+  adjacency[ind_triB][outernode_triB_p1] = ind_triA;
+  
+  //Update vertex to triangle connectivity, if data structure exists
+  if (vert2tri.length > 0)
+  {
+    //The original outernodes will now be part of both triangles
+    vert2tri[triangles[ind_triA][outernode_triA]].push(ind_triB);
+    vert2tri[triangles[ind_triB][outernode_triB]].push(ind_triA);
+    
+    //Remove triangle B from the triangle set of outernode_triA_p1
+    let local_ind = vert2tri[triangles[ind_triA][outernode_triA_p1]].indexOf(ind_triB);
+    vert2tri[triangles[ind_triA][outernode_triA_p1]].splice(local_ind, 1);
+    
+    //Remove triangle A from the triangle set of outernode_triB_p1
+    local_ind = vert2tri[triangles[ind_triB][outernode_triB_p1]].indexOf(ind_triA);
+    vert2tri[triangles[ind_triB][outernode_triB_p1]].splice(local_ind, 1); 
   }
 }
 
@@ -930,4 +985,224 @@ function printTriangles(meshData)
     content += meshData.tri[i][0] + ", " + meshData.tri[i][1] + ", " + meshData.tri[i][2] + "\n";
   
   txttri.innerHTML = content;
+}
+
+function constrain()
+{
+  constrainEdges(globalMeshData);
+}
+
+function constrainEdges(meshData)
+{
+  if (meshData.con_edge.length == 0)
+    return;
+  
+  buildVertexConnectivity(meshData);
+  
+  var con_edges = meshData.con_edge;
+  var triangles = meshData.tri;
+  var verts = meshData.scaled_vert;
+  var adjacency = meshData.adj;
+  var vert2tri = meshData.vert_to_tri;
+  
+  var maxPasses = con_edges.length;
+  var pass = 0;
+  var num_added_edges = 0;
+  while (pass < maxPasses) //Loop until all constrained edges have been added to triangulation
+  {
+    num_added_edges = 0;
+    
+    for (let iedge = 0; iedge < con_edges.length; iedge++)
+    {
+      let edge_v0_ind = con_edges[iedge][0];
+      let edge_v1_ind = con_edges[iedge][1];
+      let edge_coords = [verts[edge_v0_ind], verts[edge_v1_ind]];
+      
+      let tri_around_v0 = vert2tri[edge_v0_ind];
+      
+      let edge_in_triangulation = false;
+      let intersections = []; //stores the index of tri that intersects current edge, and the edge-index of 
+                              //intersecting edge in triangle
+      for (let itri = 0; itri < tri_around_v0.length; itri++)
+      {
+        let cur_tri = triangles[tri_around_v0[itri]];
+        let v0_node = cur_tri.indexOf(edge_v0_ind);
+        let v0p1_node = (v0_node+1) % 3;
+        let v0p2_node = (v0_node+2) % 3;
+        
+        if ( edge_v1_ind == cur_tri[v0p1_node] )
+        {
+          //constrained edge is an edge of the current tri (node v0_node to v0_node+1)
+          edge_in_triangulation = true; 
+          break;
+        }
+        else if ( edge_v1_ind == cur_tri[v0p2_node] )
+        {
+          //constrained edge is an edge of the current tri (node v0_node to v0_node+2)
+          edge_in_triangulation = true; 
+          break;
+        }
+        
+        let opposite_edge_coords = [verts[cur_tri[v0p1_node]], verts[cur_tri[v0p2_node]]];
+        if (isEdgeIntersecting(edge_coords, opposite_edge_coords))
+        {
+          intersections.push([tri_around_v0[itri], v0_node]);
+          break;
+        }
+      }
+      
+      if (edge_in_triangulation)
+      {
+        num_added_edges++;
+        continue; //nothing to do, so continue
+      }
+        
+      while (true)
+      {
+        let prev_intersection = intersections[intersections.length - 1]; //[tri ind][node ind for edge]
+        let tri_ind = adjacency[prev_intersection[0]][prev_intersection[1]];
+        
+        if ( triangles[tri_ind][0] == edge_v1_ind ||
+             triangles[tri_ind][1] == edge_v1_ind ||
+             triangles[tri_ind][2] == edge_v1_ind )
+        {
+          break; //found the end node of the edge
+        }
+        
+        //Find the index of the edge from which we came into this triangle
+        let prev_edge_ind = adjacency[tri_ind].indexOf(prev_intersection[0]);
+        if (prev_edge_ind == -1)
+          throw "Could not find edge!";
+          
+        let cur_tri = triangles[tri_ind];
+          
+        //Loop over the other two edges in this triangle,
+        //and check if they intersect the constrained edge
+        for (let offset = 1; offset < 3; offset++)
+        {
+          let v0_node = (prev_edge_ind+offset+1) % 3;
+          let v1_node = (prev_edge_ind+offset+2) % 3;
+          let cur_edge_coords = [verts[cur_tri[v0_node]], verts[cur_tri[v1_node]]];
+          
+          if (isEdgeIntersecting(edge_coords, cur_edge_coords))
+          {
+            intersections.push([tri_ind, (prev_edge_ind+offset) % 3]);
+            break;
+          }
+        }
+        
+        //console.log("edge: " + iedge + ", intersection: " + intersections[intersections.length - 1]);
+        
+      } //while intersections not found
+      
+      processEdgeIntersections(meshData, intersections, [edge_v0_ind, edge_v1_ind]);
+    
+    } //loop over constrained edges
+  
+    console.log("Num added edges: " + num_added_edges);
+    if (num_added_edges == con_edges.length)
+      break; //all constrained edges have been added
+      
+    pass++;
+  }
+  
+  if (num_added_edges != con_edges.length)
+    throw "Could not add all edges to triangulation!";
+
+}
+
+function buildVertexConnectivity(meshData)
+{
+  var triangles = meshData.tri;
+  meshData.vert_to_tri = [];
+  var vConnectivity = meshData.vert_to_tri;
+  
+  for (let itri = 0; itri < triangles.length; itri++)
+  {
+    for (let node = 0; node < 3; node++)
+    {
+      if (vConnectivity[triangles[itri][node]] == undefined)
+        vConnectivity[triangles[itri][node]] = [itri];
+      else
+        vConnectivity[triangles[itri][node]].push(itri);
+    }
+  }
+}
+
+function processEdgeIntersections(meshData, intersectionList, con_edge_nodes)
+{
+  var triangles = meshData.tri;
+  var verts = meshData.scaled_vert;
+  var adjacency = meshData.adj;
+  
+  //var con_edge_coords = [verts[con_edge_nodes[0]], verts[con_edge_nodes[1]]];
+  
+  var nIntersections = intersectionList.length;
+  for (let i = 0; i < nIntersections; i++)
+  {     
+    //Looping in reverse order is important since then the
+    //indices in intersectionList remain unaffected by any diagonal swaps
+    let tri0_ind = intersectionList[nIntersections - 1 - i][0];
+    let tri0_node = intersectionList[nIntersections - 1 - i][1];
+    
+    let tri1_ind = adjacency[tri0_ind][tri0_node];
+    let tri1_node = adjacency[tri1_ind].indexOf(tri0_ind);
+    
+    let quad_v0 = verts[triangles[tri0_ind][tri0_node]];
+    let quad_v1 = verts[triangles[tri0_ind][(tri0_node + 1) % 3]];
+    let quad_v2 = verts[triangles[tri1_ind][tri1_node]];
+    let quad_v3 = verts[triangles[tri0_ind][(tri0_node + 2) % 3]];
+    
+    let isConvex = isQuadConvex(quad_v0, quad_v1, quad_v2, quad_v3);
+    //console.log("tri: " + tri0_ind + ", " + tri1_ind + ", convex: " + isConvex);
+    
+    if (isConvex)
+    {
+      swapDiagonal(meshData, tri0_ind, tri1_ind);
+      //renderTriangulation(meshData);
+      
+      for (let j = nIntersections - 2 - i; j >= 0; j--)
+      {
+        if (intersectionList[j][0] == tri0_ind)
+        {
+          console.log("tri0_ind: " + intersectionList[j][0] + ", " + intersectionList[j][1])
+        }
+        else if (intersectionList[j][0] == tri1_ind)
+        {
+          console.log("tri1_ind: " + intersectionList[j][0] + ", " + intersectionList[j][1])
+        }
+      }
+      
+    }
+    
+  }
+        
+//        let newDiagonal_nodes = [triangles[tri0_ind][tri0_node], triangles[tri1_ind][tri1_node]];
+//        let newDiagonal_coords = [quad_v0, quad_v2];
+//        let isDiagonalDetached = (newDiagonal_nodes[0] != con_edge_nodes[0] && newDiagonal_nodes[0] != con_edge_nodes[1]) &&
+//                                 (newDiagonal_nodes[1] != con_edge_nodes[0] && newDiagonal_nodes[1] != con_edge_nodes[1]);
+//        if (isDiagonalDetached && isEdgeIntersecting(con_edge_coords, newDiagonal_coords))
+//        {
+//          incompleteList.push([tri0_ind, ((tri0_node + 1) % 3)]);
+//        }
+//        else
+//        {
+//        
+//        }
+
+//      else
+//      {
+//        incompleteList.push(intersection);
+//      }
+      
+//    }
+    
+//    if (incompleteList.length == 0)
+//      break;
+//    else 
+//    {
+//      //while (incompleteList.length > 0)
+//      //  intersectionList.push(incompleteList.pop());
+//    }
+//  }
 }

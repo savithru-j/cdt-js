@@ -44,3 +44,8 @@ button.big {
   width: 200px;
   height: 40px;
 }
+
+input.small {
+  width: 80px;
+  height: 25px;
+}
