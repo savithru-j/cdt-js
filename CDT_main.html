@@ -13,7 +13,7 @@
 <input type="file" id="filevertex" onChange="readVertices()">
 
 <p>Choose edge file: &nbsp 
-<input type="file" id="filevertex"/>
+<input type="file" id="fileedge" onChange="readEdges()"/>
 
 <p><button id="btngenrandomvertex" class="small" onClick="genRandVertices()">Generate random vertices</button>
 Count: <input class="small" type="number" id="txtnumrandvertex" min="3" step="10" value="10">
@@ -44,7 +44,7 @@ Count: <input class="small" type="number" id="txtnumrandedges" min="0" step="10"
 <hr>
 
 <button id="btntriangulate" class="big" onClick="triangulate()">Triangulate!</button>
-<button id="btnconstrain" class="big" onClick="constrain()">Constrain!</button>
+<button id="btncheck" class="big" onClick="checkTriangulation()">Check</button>
 <p>
 
 <div class="block canvas">

@@ -107,3 +107,9 @@ function isQuadConvex(p0, p1, p2, p3)
   
   return isEdgeIntersecting(diag0, diag1);
 }
+
+function isSameEdge(edge0, edge1)
+{
+  return ((edge0[0] == edge1[0] && edge0[1] == edge1[1]) ||
+          (edge0[1] == edge1[0] && edge0[0] == edge1[1]))
+}
