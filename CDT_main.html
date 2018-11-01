@@ -65,11 +65,20 @@ Count: <input class="small" type="number" id="txtnumrandedges" min="0" step="10"
 
 <br><br>
 
+<div class="block">
 <p>Triangle list:
 <br>
 <textarea id="txttriangles" rows="20" cols="50">
 </textarea>
-
+</div>
+<div class="block" style="padding-left:10px">
+<p>
+Locate vertex:&nbsp 
+<input id="txtlocatevertex" type="number" oninput="locateVertex()" min=0></input>
+<p>
+Locate triangle: 
+<input id="txtlocatetriangle" type="number" oninput="locateTriangle()" min=0></input>
+</div>
 
 </body>
 </html>

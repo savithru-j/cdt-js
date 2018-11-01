@@ -113,3 +113,19 @@ function isSameEdge(edge0, edge1)
   return ((edge0[0] == edge1[0] && edge0[1] == edge1[1]) ||
           (edge0[1] == edge1[0] && edge0[0] == edge1[1]))
 }
+
+function getCircumcenter(p0, p1, p2)
+{
+  var d = 2*(p0.x*(p1.y - p2.y) + p1.x*(p2.y - p0.y) + p2.x*(p0.y - p1.y));
+  
+  var p0_mag = p0.x*p0.x + p0.y*p0.y;
+  var p1_mag = p1.x*p1.x + p1.y*p1.y;
+  var p2_mag = p2.x*p2.x + p2.y*p2.y;
+  
+  var xc = (p0_mag*(p1.y - p2.y) + p1_mag*(p2.y - p0.y) + p2_mag*(p0.y - p1.y)) / d;
+  var yc = (p0_mag*(p2.x - p1.x) + p1_mag*(p0.x - p2.x) + p2_mag*(p1.x - p0.x)) / d;
+  //var pc = new Point(xc, yc);
+  //var r = Math.sqrt(pc.sqDistanceTo(p0));
+  
+  return new Point(xc, yc); //[pc, r];
+}

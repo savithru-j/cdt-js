@@ -10,6 +10,17 @@ var min_coord = new Point(0,0);
 var max_coord = new Point(1,1);
 var screenL = 1.0;
 
+const colorVertex = "#222222";
+const colorTriangle = "#EEEEEE";
+const colorEdge = "#777777";
+const colorConstrainedEdge = "#FF7777";
+
+const colorHighlightedVertex = "#FF0000";
+const colorHighlightedTriangle = "#4DA6FF";
+const colorHighlightedAdjTriangle = "#B3D9FF";
+
+const edgeWidth = 2;
+
 var globalMeshData = 
 {
   vert: [],
@@ -283,10 +294,6 @@ function resizeWindow()
   var canvas = document.getElementById("main_canvas");
   canvas.width = main_width;
   canvas.height = main_height;
-  
-  //var ctx = canvas.getContext("2d");
-  //ctx.fillStyle = "#FF0000";
-  //ctx.fillRect(0,0,150,75);
 }
 
 function printToLog(str)
@@ -312,12 +319,12 @@ function invTransformCoord(coord)
   return new Point(x, y);
 }
 
-function drawVertices(meshData)
+function renderVertices(meshData)
 {
   var canvas = document.getElementById("main_canvas");
   var ctx = canvas.getContext("2d");
   
-  ctx.fillStyle = "#222222";
+  ctx.fillStyle = colorVertex;
   
   ctx.beginPath();
   for(let i = 0; i < meshData.vert.length; i++)
@@ -328,12 +335,12 @@ function drawVertices(meshData)
   ctx.closePath();
 }
 
-function drawEdges(meshData)
+function renderEdges(meshData)
 {
   var canvas = document.getElementById("main_canvas");
   var ctx = canvas.getContext("2d");
-  ctx.strokeStyle = "#FF7777";
-  ctx.lineWidth = 3;
+  ctx.strokeStyle = colorConstrainedEdge;
+  ctx.lineWidth = edgeWidth;
   
   var verts = meshData.vert;
   var edges = meshData.con_edge;
@@ -352,7 +359,6 @@ function drawEdges(meshData)
     ctx.closePath();
     ctx.stroke();
   }
-  
 }
 
 function renderTriangulation(meshData)
@@ -364,8 +370,8 @@ function renderTriangulation(meshData)
   var verts = meshData.vert;
   var triangles = meshData.tri;
   
-  ctx.fillStyle = "#EEEEEE";
-  ctx.strokeStyle = "#777777";
+  ctx.fillStyle = colorTriangle;
+  ctx.strokeStyle = colorEdge;
   ctx.lineWidth = 1;
   
   for(let itri = 0; itri < triangles.length; itri++)
@@ -388,8 +394,8 @@ function renderTriangulation(meshData)
     ctx.stroke();
   }
 
-  drawEdges(meshData);
-  drawVertices(meshData, false);
+  renderEdges(meshData);
+  renderVertices(meshData, false);
 }
 
 function drawPath(path)
@@ -440,10 +446,7 @@ function displayTriangulationInfo(canvas,e)
     return;
   
   renderTriangulation(globalMeshData);
-  ctx.fillStyle = "#FF0000";
-  ctx.strokeStyle = "#777777";
-  ctx.lineWidth = 1;
-  
+ 
   var foundVertex = false;
   for (let i = 0; i < verts.length; i++)
   {
@@ -451,17 +454,14 @@ function displayTriangulationInfo(canvas,e)
     let canvas_coord = transformCoord(coord);
     if (canvas_coord.sqDistanceTo(mouse_coord) <= 9)
     {
-      ctx.fillRect(canvas_coord.x-4,canvas_coord.y-4,8,8);
-      document.getElementById("div_info").innerHTML = 
-      "<b>Vertex:</b> <br>&nbsp &nbsp Index: " + i +
-      "<br>&nbsp &nbsp Coordinates: " + coord.toStr();
+      renderSelectedVertex(ctx, i);
       foundVertex = true;
       break;
     }
   }
   if (foundVertex)
     return;
-    
+       
   var foundTriangle = false;
   if (triangles.length > 0)
   {
@@ -475,71 +475,131 @@ function displayTriangulationInfo(canvas,e)
     
     if (ind_tri >= 0)
     {
-      ctx.beginPath();
-      
-      let v0 = verts[triangles[ind_tri][0]];
-      let canvas_coord = transformCoord(v0);
-      ctx.moveTo(canvas_coord.x,canvas_coord.y);
-      
-      for (let node = 1; node < 3; node++)
-      {
-        let v = verts[triangles[ind_tri][node]];
-        let canvas_coord = transformCoord(v);
-        ctx.lineTo(canvas_coord.x,canvas_coord.y);
-      }
-      
-      ctx.closePath();
-      ctx.fillStyle = "#4da6ff"; //"#ffc34d";
-      ctx.fill();
-      ctx.stroke();
-      
-      ctx.fillStyle = "#b3d9ff"; //"#ffe6b3";
-      let adj_str = "";
-      for (let adj_tri = 0; adj_tri < 3; adj_tri++)
-      {
-        ctx.beginPath();
-      
-        let ind_adj_tri = adjacency[ind_tri][adj_tri];
-        if (ind_adj_tri == -1)
-          continue;
-          
-        if (adj_str == "")
-          adj_str = ind_adj_tri;
-        else
-          adj_str += ", " + ind_adj_tri;  
-          
-        let v0 = verts[triangles[ind_adj_tri][0]];
-        let canvas_coord = transformCoord(v0);
-        ctx.moveTo(canvas_coord.x,canvas_coord.y);
-        
-        for (let node = 1; node < 3; node++)
-        {
-          let v = verts[triangles[ind_adj_tri][node]];
-          let canvas_coord = transformCoord(v);
-          ctx.lineTo(canvas_coord.x,canvas_coord.y);
-        }
-        
-        ctx.closePath();
-        ctx.fill();
-        ctx.stroke();
-      }
-      
-      document.getElementById("div_info").innerHTML = 
-      "<b>Triangle:</b>" +
-      "<br>&nbsp &nbsp Index: " + ind_tri +
-      "<br>&nbsp &nbsp Vertex indices: " + triangles[ind_tri][0] + ", " + triangles[ind_tri][1] + ", " + triangles[ind_tri][2] + 
-      "<br>&nbsp &nbsp Vertex coords: " + verts[triangles[ind_tri][0]].toStr() + ", " + verts[triangles[ind_tri][1]].toStr() + ", " + verts[triangles[ind_tri][2]].toStr() + 
-      "<br>&nbsp &nbsp Adjacent triangles: " + adj_str;
-      
+      renderSelectedTriangle(ctx, ind_tri);     
       foundTriangle = true;
       
-      drawEdges(globalMeshData);
-      drawVertices(globalMeshData, false);
+      renderEdges(globalMeshData);
+      renderVertices(globalMeshData, false);
     }
   }
   
   if (!foundVertex && !foundTriangle)
     document.getElementById("div_info").innerHTML = "Click on a triangle or vertex for more info...";
+}
+
+function renderSelectedVertex(ctx, ind_vert)
+{
+  var coord = globalMeshData.vert[ind_vert];
+  let canvas_coord = transformCoord(coord);
+  
+  ctx.fillStyle = colorHighlightedVertex;
+  ctx.fillRect(canvas_coord.x-4,canvas_coord.y-4,8,8);
+  document.getElementById("div_info").innerHTML = 
+  "<b>Vertex:</b> <br>&nbsp &nbsp Index: " + ind_vert +
+  "<br>&nbsp &nbsp Coordinates: " + coord.toStr();
+}
+
+function renderSelectedTriangle(ctx, ind_tri)
+{
+  var verts = globalMeshData.vert;
+  var triangles = globalMeshData.tri;
+  var adjacency = globalMeshData.adj;
+  
+  ctx.strokeStyle = colorEdge;
+  ctx.lineWidth = 1;
+  
+  ctx.beginPath();
+  
+  let v0 = verts[triangles[ind_tri][0]];
+  let canvas_coord = transformCoord(v0);
+  ctx.moveTo(canvas_coord.x,canvas_coord.y);
+  
+  for (let node = 1; node < 3; node++)
+  {
+    const v = verts[triangles[ind_tri][node]];
+    canvas_coord = transformCoord(v);
+    ctx.lineTo(canvas_coord.x,canvas_coord.y);
+  }
+  
+  ctx.closePath();
+  ctx.fillStyle = colorHighlightedTriangle;
+  ctx.fill();
+  ctx.stroke();
+    
+  ctx.fillStyle = colorHighlightedAdjTriangle;
+  let adj_str = "";
+  for (let adj_tri = 0; adj_tri < 3; adj_tri++)
+  {
+    ctx.beginPath();
+  
+    let ind_adj_tri = adjacency[ind_tri][adj_tri];
+    if (ind_adj_tri == -1)
+      continue;
+      
+    if (adj_str == "")
+      adj_str = ind_adj_tri;
+    else
+      adj_str += ", " + ind_adj_tri;  
+      
+    v0 = verts[triangles[ind_adj_tri][0]];
+    canvas_coord = transformCoord(v0);
+    ctx.moveTo(canvas_coord.x,canvas_coord.y);
+    
+    for (let node = 1; node < 3; node++)
+    {
+      const v = verts[triangles[ind_adj_tri][node]];
+      canvas_coord = transformCoord(v);
+      ctx.lineTo(canvas_coord.x,canvas_coord.y);
+    }
+    
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+  }
+  
+  const center = getCircumcenter(verts[triangles[ind_tri][0]], 
+                                 verts[triangles[ind_tri][1]],
+                                 verts[triangles[ind_tri][2]]);
+  
+  v0 = verts[triangles[ind_tri][0]];                          
+  canvas_coord = transformCoord(center);
+  const canvas_radius = Math.sqrt(canvas_coord.sqDistanceTo(transformCoord(v0)));
+  ctx.strokeStyle = "#A6A6A6";
+  ctx.beginPath();
+  ctx.arc(canvas_coord.x, canvas_coord.y, canvas_radius, 0, 2*Math.PI);
+  ctx.stroke();  
+    
+  
+  document.getElementById("div_info").innerHTML = 
+  "<b>Triangle:</b>" +
+  "<br>&nbsp &nbsp Index: " + ind_tri +
+  "<br>&nbsp &nbsp Vertex indices: " + triangles[ind_tri][0] + ", " + triangles[ind_tri][1] + ", " + triangles[ind_tri][2] + 
+  "<br>&nbsp &nbsp Vertex coords: " + verts[triangles[ind_tri][0]].toStr() + ", " + verts[triangles[ind_tri][1]].toStr() + ", " + verts[triangles[ind_tri][2]].toStr() + 
+  "<br>&nbsp &nbsp Adjacent triangles: " + adj_str;
+}
+
+function locateVertex()
+{
+  renderTriangulation(globalMeshData);
+  
+  var ind = document.getElementById("txtlocatevertex").value;
+  if (ind == "" || ind < 0 || ind >= globalMeshData.vert.length)
+    return;
+    
+  var ctx = document.getElementById("main_canvas").getContext("2d");
+  renderSelectedVertex(ctx, ind);
+}
+
+function locateTriangle()
+{
+  renderTriangulation(globalMeshData);
+  
+  var ind = document.getElementById("txtlocatetriangle").value;
+  if (ind == "" || ind < 0 || ind >= globalMeshData.tri.length)
+    return;
+    
+  var ctx = document.getElementById("main_canvas").getContext("2d");
+  renderSelectedTriangle(ctx, ind);
 }
 
 function triangulate()
@@ -1038,110 +1098,27 @@ function constrainEdges(meshData)
   var vert2tri = meshData.vert_to_tri;
   
   var newEdgeList = [];
-  var maxPasses = Math.max(con_edges.length, 3);
-  var pass = 0;
-  var num_added_edges = 0;
-  while (pass < maxPasses) //Loop until all constrained edges have been added to triangulation
-  {
-    num_added_edges = 0;
     
-    for (let iedge = 0; iedge < con_edges.length; iedge++)
+  for (let iedge = 0; iedge < con_edges.length; iedge++)
+  { 
+    let intersections = getEdgeIntersections(meshData, iedge);
+    
+    let iter = 0;
+    const maxIter = Math.max(intersections.length, 1);
+    while (intersections.length > 0 && iter < maxIter)
     {
-      const edge_v0_ind = con_edges[iedge][0];
-      const edge_v1_ind = con_edges[iedge][1];
-      const edge_coords = [verts[edge_v0_ind], verts[edge_v1_ind]];
-      
-      const tri_around_v0 = vert2tri[edge_v0_ind];
-      
-      let edge_in_triangulation = false;
-      let intersections = []; //stores the index of tri that intersects current edge, and the edge-index of 
-                              //intersecting edge in triangle
-      for (let itri = 0; itri < tri_around_v0.length; itri++)
-      {
-        const cur_tri = triangles[tri_around_v0[itri]];
-        const v0_node = cur_tri.indexOf(edge_v0_ind);
-        const v0p1_node = (v0_node+1) % 3;
-        const v0p2_node = (v0_node+2) % 3;
-        
-        if ( edge_v1_ind == cur_tri[v0p1_node] )
-        {
-          //constrained edge is an edge of the current tri (node v0_node to v0_node+1)
-          edge_in_triangulation = true; 
-          break;
-        }
-        else if ( edge_v1_ind == cur_tri[v0p2_node] )
-        {
-          //constrained edge is an edge of the current tri (node v0_node to v0_node+2)
-          edge_in_triangulation = true; 
-          break;
-        }
-        
-        const opposite_edge_coords = [verts[cur_tri[v0p1_node]], verts[cur_tri[v0p2_node]]];
-        if (isEdgeIntersecting(edge_coords, opposite_edge_coords))
-        {
-          intersections.push([tri_around_v0[itri], v0_node]);
-          break;
-        }
-      }
-      
-      if (edge_in_triangulation)
-      {
-        num_added_edges++;
-        continue; //nothing to do, so continue
-      }
-        
-      while (true)
-      {
-        const prev_intersection = intersections[intersections.length - 1]; //[tri ind][node ind for edge]
-        const tri_ind = adjacency[prev_intersection[0]][prev_intersection[1]];
-        
-        if ( triangles[tri_ind][0] == edge_v1_ind ||
-             triangles[tri_ind][1] == edge_v1_ind ||
-             triangles[tri_ind][2] == edge_v1_ind )
-        {
-          break; //found the end node of the edge
-        }
-        
-        //Find the index of the edge from which we came into this triangle
-        let prev_edge_ind = adjacency[tri_ind].indexOf(prev_intersection[0]);
-        if (prev_edge_ind == -1)
-          throw "Could not find edge!";
-          
-        const cur_tri = triangles[tri_ind];
-          
-        //Loop over the other two edges in this triangle,
-        //and check if they intersect the constrained edge
-        for (let offset = 1; offset < 3; offset++)
-        {
-          const v0_node = (prev_edge_ind+offset+1) % 3;
-          const v1_node = (prev_edge_ind+offset+2) % 3;
-          const cur_edge_coords = [verts[cur_tri[v0_node]], verts[cur_tri[v1_node]]];
-          
-          if (isEdgeIntersecting(edge_coords, cur_edge_coords))
-          {
-            intersections.push([tri_ind, (prev_edge_ind+offset) % 3]);
-            break;
-          }
-        }
-        
-        //console.log("edge: " + iedge + ", intersection: " + intersections[intersections.length - 1]);
-        
-      } //while intersections not found
-      
-      processEdgeIntersections(meshData, intersections, iedge, newEdgeList);
+      fixEdgeIntersections(meshData, intersections, iedge, newEdgeList);
+      intersections = getEdgeIntersections(meshData, iedge);
+      iter++;
+    }
     
-    } //loop over constrained edges
-  
-    console.log("Num added edges: " + num_added_edges);
-    if (num_added_edges == con_edges.length)
-      break; //all constrained edges have been added
-      
-    pass++;
-  }
-  
-  if (num_added_edges != con_edges.length)
-    throw "Could not add all edges to triangulation!";
+    if (intersections.length > 0)
+      throw "Could not add edge " + iedge + " to triangulation after " + maxIter + " iterations!";
     
+    //console.log("Edge: " + iedge + ", passes: " + tmp_pass + ", max: " + maxPass);
+  
+  } //loop over constrained edges
+
 
   //Restore Delaunay
   for (let iedge = 0; iedge < newEdgeList.length; iedge++)
@@ -1181,7 +1158,19 @@ function constrainEdges(meshData)
     //console.log(iedge + ": "  + new_edge_nodes[0] + ", " + new_edge_nodes[1] + ", " + tri_ind_pair[0] + ", " + tri_ind_pair[1]);
     
     if (tri_ind_pair[0] == -1)
+    {
+      console.log("Skipping: " + new_edge_nodes);
       continue; //this edge no longer exists, so nothing to do.
+    }
+      
+    /*
+    const outer_nodeA_ind = adjacency[tri_ind_pair[0]].indexOf(tri_ind_pair[1]);
+    const outer_nodeB_ind = adjacency[tri_ind_pair[1]].indexOf(tri_ind_pair[0]);
+    const outer_vertB_ind = triangles[tri_ind_pair[1]][outer_nodeB_ind];
+    
+    let stack = [[tri_ind_pair[0], outer_nodeA_ind]];
+    restoreDelaunay(outer_vertB_ind, meshData, stack);
+    */
     
     const triA_verts = [verts[triangles[tri_ind_pair[0]][0]],
                         verts[triangles[tri_ind_pair[0]][1]],
@@ -1196,6 +1185,7 @@ function constrainEdges(meshData)
       swapDiagonal(meshData, tri_ind_pair[0], tri_ind_pair[1]);
       //renderTriangulation(meshData);
     }
+    
     
   } //loop over new edges
 }
@@ -1218,7 +1208,102 @@ function buildVertexConnectivity(meshData)
   }
 }
 
-function processEdgeIntersections(meshData, intersectionList, con_edge_ind, newEdgeList)
+function getEdgeIntersections(meshData, iedge)
+{
+  var triangles = meshData.tri;
+  var verts = meshData.scaled_vert;
+  var adjacency = meshData.adj;
+  var con_edges = meshData.con_edge;
+  var vert2tri = meshData.vert_to_tri;
+  
+  const edge_v0_ind = con_edges[iedge][0];
+  const edge_v1_ind = con_edges[iedge][1];
+  const edge_coords = [verts[edge_v0_ind], verts[edge_v1_ind]];
+  
+  const tri_around_v0 = vert2tri[edge_v0_ind];
+  
+  let edge_in_triangulation = false;
+  
+  //stores the index of tri that intersects current edge, 
+  //and the edge-index of intersecting edge in triangle
+  let intersections = [];
+  
+  for (let itri = 0; itri < tri_around_v0.length; itri++)
+  {
+    const cur_tri = triangles[tri_around_v0[itri]];
+    const v0_node = cur_tri.indexOf(edge_v0_ind);
+    const v0p1_node = (v0_node+1) % 3;
+    const v0p2_node = (v0_node+2) % 3;
+    
+    if ( edge_v1_ind == cur_tri[v0p1_node] )
+    {
+      //constrained edge is an edge of the current tri (node v0_node to v0_node+1)
+      edge_in_triangulation = true; 
+      break;
+    }
+    else if ( edge_v1_ind == cur_tri[v0p2_node] )
+    {
+      //constrained edge is an edge of the current tri (node v0_node to v0_node+2)
+      edge_in_triangulation = true; 
+      break;
+    }
+    
+    const opposite_edge_coords = [verts[cur_tri[v0p1_node]], verts[cur_tri[v0p2_node]]];
+    if (isEdgeIntersecting(edge_coords, opposite_edge_coords))
+    {
+      intersections.push([tri_around_v0[itri], v0_node]);
+      break;
+    }
+  }
+  
+  if (!edge_in_triangulation)
+  {
+    if (intersections.length == 0)
+      throw "Cannot have no intersections!";
+      
+    while (true)
+    {
+      const prev_intersection = intersections[intersections.length - 1]; //[tri ind][node ind for edge]
+      const tri_ind = adjacency[prev_intersection[0]][prev_intersection[1]];
+      
+      if ( triangles[tri_ind][0] == edge_v1_ind ||
+           triangles[tri_ind][1] == edge_v1_ind ||
+           triangles[tri_ind][2] == edge_v1_ind )
+      {
+        break; //found the end node of the edge
+      }
+      
+      //Find the index of the edge from which we came into this triangle
+      let prev_edge_ind = adjacency[tri_ind].indexOf(prev_intersection[0]);
+      if (prev_edge_ind == -1)
+        throw "Could not find edge!";
+        
+      const cur_tri = triangles[tri_ind];
+        
+      //Loop over the other two edges in this triangle,
+      //and check if they intersect the constrained edge
+      for (let offset = 1; offset < 3; offset++)
+      {
+        const v0_node = (prev_edge_ind+offset+1) % 3;
+        const v1_node = (prev_edge_ind+offset+2) % 3;
+        const cur_edge_coords = [verts[cur_tri[v0_node]], verts[cur_tri[v1_node]]];
+        
+        if (isEdgeIntersecting(edge_coords, cur_edge_coords))
+        {
+          intersections.push([tri_ind, (prev_edge_ind+offset) % 3]);
+          break;
+        }
+      }
+      
+      //console.log("edge: " + iedge + ", intersection: " + intersections[intersections.length - 1]);
+      
+    } //while intersections not found
+  } //if edge not in triangulation
+  
+  return intersections;
+}
+
+function fixEdgeIntersections(meshData, intersectionList, con_edge_ind, newEdgeList)
 {
   var triangles = meshData.tri;
   var verts = meshData.scaled_vert;
@@ -1304,12 +1389,163 @@ function processEdgeIntersections(meshData, intersectionList, con_edge_ind, newE
 }
 
 function checkTriangulation()
-{
-  if (meshData.con_edge.length == 0)
-    return;
+{ 
+  var triangles = globalMeshData.tri;
+  var verts = globalMeshData.scaled_vert;
+  var adjacency = globalMeshData.adj;
+  var con_edges = globalMeshData.con_edge;
   
   buildVertexConnectivity(globalMeshData);
+  var vert2tri = globalMeshData.vert_to_tri;
   
+  for (let iedge = 0; iedge < con_edges.length; iedge++)
+  {
+    const edge_v0_ind = con_edges[iedge][0];
+    const edge_v1_ind = con_edges[iedge][1];
+    
+    const tri_around_v0 = vert2tri[edge_v0_ind];
+    
+    let edge_in_triangulation = false;
+
+    for (let itri = 0; itri < tri_around_v0.length; itri++)
+    {
+      const cur_tri = triangles[tri_around_v0[itri]];
+      const v0_node = cur_tri.indexOf(edge_v0_ind);
+      const v0p1_node = (v0_node+1) % 3;
+      const v0p2_node = (v0_node+2) % 3;
+      
+      if ( edge_v1_ind == cur_tri[v0p1_node] || edge_v1_ind == cur_tri[v0p2_node] )
+      {
+        //constrained edge is an edge of the current tri
+        edge_in_triangulation = true; 
+        break;
+      }
+    }
+    
+    if (!edge_in_triangulation)
+      throw "Edge " + iedge + " is not in the triangulation!"
+  }
   
+  for (let itri = 0; itri < triangles.length; itri++)
+  {
+    const cur_tri = triangles[itri];
+    const tri_verts = [verts[cur_tri[0]], verts[cur_tri[1]], verts[cur_tri[2]]];
+    
+    for (let node = 0; node < 3; node++)
+    {
+      const tri_outerv_ind = cur_tri[node];
+      const tri_edge_node0 = cur_tri[(node + 1) % 3];
+      const tri_edge_node1 = cur_tri[(node + 2) % 3];
+      
+      const vec_edge01 = verts[tri_edge_node1].sub(verts[tri_edge_node0]);
+      const vec_edge0_to_outer = verts[tri_outerv_ind].sub(verts[tri_edge_node0]);
+      const cross0 = cross(vec_edge01, vec_edge0_to_outer);
+      
+      for (let indv = 0; indv < verts.length; indv++)
+      {
+        if (indv == cur_tri[0] || indv == cur_tri[1] || indv == cur_tri[2])
+          continue;
+          
+        const vec_edge0_to_vert = verts[indv].sub(verts[tri_edge_node0]);
+        const cross1 = cross(vec_edge01, vec_edge0_to_vert);
+        
+        if (cross0*cross1 >= 0) //vertex and triangle are on same side of edge
+          continue;
+        
+        const edge0_to_vert = [verts[tri_edge_node0], verts[indv]];
+        const edge1_to_vert = [verts[tri_edge_node1], verts[indv]];
+        
+        let is_blocked_by_con_edge = false;
+        for (let iedge = 0; iedge < con_edges.length; iedge++)
+        {
+          if ( isSameEdge(con_edges[iedge], [tri_edge_node0, tri_edge_node1]) )
+          {
+            is_blocked_by_con_edge = true;
+            break;
+          }
+          
+          if (con_edges[iedge][0] == indv || con_edges[iedge][1] == indv)
+            continue; //doesn't count as blocking
+            
+          if (con_edges[iedge][0] == tri_edge_node0 || con_edges[iedge][1] == tri_edge_node0 ||
+              con_edges[iedge][0] == tri_edge_node1 || con_edges[iedge][1] == tri_edge_node1 )
+            continue; //doesn't count as blocking
+                     
+          const con_edge_verts = [verts[con_edges[iedge][0]], verts[con_edges[iedge][1]]];
+          if (isEdgeIntersecting(edge0_to_vert, con_edge_verts) || 
+              isEdgeIntersecting(edge1_to_vert, con_edge_verts))
+          {
+            is_blocked_by_con_edge = true;
+            console.log("tri" + itri + ", edge" + node + ": vert" + indv + " blocked by conedge" + iedge);
+            break;
+          }
+        } //loop over con edges
+        
+        if (is_blocked_by_con_edge) //one of the nodes of this edge can't see vertex i
+          continue;
+          
+        if (!isDelaunay2(tri_verts, verts[indv]))
+          console.log("Triangle " + itri + " and vertex " + indv + " are not Delaunay!");
+          
+      } //loop over vertices
+    } //loop over triangle edges
+    
+    /*
+    for (let i = 0; i < verts.length; i++)
+    {
+      if (i == cur_tri[0] || i == cur_tri[1] || i == cur_tri[2])
+        continue;
+        
+      let is_vert_blocked = false; //true if any node of triangle can't see vertex i
+      for (let node = 0; node < 3; node++)
+      {
+        const trinode_to_vert = [tri_verts[node], verts[i]];
+        const tri_opp_edge = [tri_verts[(node + 1) % 3], tri_verts[(node + 2) % 3]];
+        const is_blocked_by_tri = isEdgeIntersecting(trinode_to_vert, tri_opp_edge);
+        
+        if (is_blocked_by_tri)
+        {
+          console.log("tri" + itri + ", node" + node + ": vert" + i + " blocked by tri");
+          continue;
+        }
+          
+        let is_blocked_by_con_edge = false;
+        for (let iedge = 0; iedge < con_edges.length; iedge++)
+        {
+          if (con_edges[iedge][0] == cur_tri[node] || con_edges[iedge][1] == cur_tri[node] ||
+              con_edges[iedge][0] == i || con_edges[iedge][1] == i)
+          {
+            continue;
+          }
+            
+          const con_edge_verts = [verts[con_edges[iedge][0]], verts[con_edges[iedge][1]]];
+          if (isEdgeIntersecting(trinode_to_vert, con_edge_verts))
+          {
+            is_blocked_by_con_edge = true;
+            console.log("tri" + itri + ", node" + node + ": vert" + i + " blocked by conedge" + iedge);
+            break;
+          }
+        } //loop over con edges
+        
+        if (is_blocked_by_con_edge) //this node can't see vertex i
+        {
+          is_vert_blocked = true;
+          break;
+        }
+      } //loop over nodes of triangle
+
+      
+      if (is_vert_blocked)
+        continue;
+        
+      if (!isDelaunay2(tri_verts, verts[i]))
+        console.log("Triangle " + itri + " and vertex " + i + " are not Delaunay!");
+        
+    } //loop over vertices
+    */
+    
+  } //loop over triangles
+  
+  console.log("Check complete!");
   
 }
