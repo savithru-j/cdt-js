@@ -1,5 +1,6 @@
 // Constrained Delaunay Triangulation code in JavaScript
 // Copyright 2018 Savithru Jayasinghe
+// Licensed under the MIT License (LICENSE.txt)
 
 class Point
 {
