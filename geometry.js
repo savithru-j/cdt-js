@@ -100,6 +100,24 @@ function isEdgeIntersecting(edgeA, edgeB)
   return true;
 }
 
+function isEdgeIntersectingAtEndpoint(edgeA, edgeB)
+{
+  const rsq_tol = 1e-13;
+  if (edgeA[0].sqDistanceTo(edgeB[0]) < rsq_tol)
+    return true;
+    
+  if (edgeA[0].sqDistanceTo(edgeB[1]) < rsq_tol)
+    return true;
+    
+  if (edgeA[1].sqDistanceTo(edgeB[0]) < rsq_tol)
+    return true;
+    
+  if (edgeA[1].sqDistanceTo(edgeB[1]) < rsq_tol)
+    return true;
+    
+  return false;
+}
+
 function isQuadConvex(p0, p1, p2, p3)
 {
   var diag0 = [p0, p2];
@@ -128,4 +146,17 @@ function getCircumcenter(p0, p1, p2)
   //var r = Math.sqrt(pc.sqDistanceTo(p0));
   
   return new Point(xc, yc); //[pc, r];
+}
+
+function getPointOrientation(edge, p)
+{
+  const vec_edge01 = edge[1].sub(edge[0]);
+  const vec_edge0_to_p = p.sub(edge[0]);
+  const area = cross(vec_edge01, vec_edge0_to_p);
+  if (area > 0)
+    return 1;
+  else if (area < 0)
+    return -1;
+  else
+    return 0;
 }

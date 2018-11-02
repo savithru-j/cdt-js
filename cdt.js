@@ -1431,121 +1431,86 @@ function checkTriangulation()
     const cur_tri = triangles[itri];
     const tri_verts = [verts[cur_tri[0]], verts[cur_tri[1]], verts[cur_tri[2]]];
     
-    for (let node = 0; node < 3; node++)
+    for (let indv = 0; indv < verts.length; indv++)
     {
-      const tri_outerv_ind = cur_tri[node];
-      const tri_edge_node0 = cur_tri[(node + 1) % 3];
-      const tri_edge_node1 = cur_tri[(node + 2) % 3];
+      if (indv == cur_tri[0] || indv == cur_tri[1] || indv == cur_tri[2])
+        continue;
       
-      const vec_edge01 = verts[tri_edge_node1].sub(verts[tri_edge_node0]);
-      const vec_edge0_to_outer = verts[tri_outerv_ind].sub(verts[tri_edge_node0]);
-      const cross0 = cross(vec_edge01, vec_edge0_to_outer);
+      let is_vert_blocked = false; //true if any node of triangle can't see vertex indv
       
-      for (let indv = 0; indv < verts.length; indv++)
+      for (let edge_t = 0; edge_t < 3; edge_t++)
       {
-        if (indv == cur_tri[0] || indv == cur_tri[1] || indv == cur_tri[2])
-          continue;
+        const tri_edge_node0 = cur_tri[(edge_t + 1) % 3];
+        const tri_edge_node1 = cur_tri[(edge_t + 2) % 3];
+        const tri_edge_verts = [ tri_verts[(edge_t + 1) % 3], tri_verts[(edge_t + 2) % 3] ];
+        
+        if (getPointOrientation(tri_edge_verts, verts[indv]) >= 0)
+          continue; //skip edge if vertex if on left (triangle edges go anticlockwise)
           
-        const vec_edge0_to_vert = verts[indv].sub(verts[tri_edge_node0]);
-        const cross1 = cross(vec_edge01, vec_edge0_to_vert);
-        
-        if (cross0*cross1 >= 0) //vertex and triangle are on same side of edge
-          continue;
-        
-        const edge0_to_vert = [verts[tri_edge_node0], verts[indv]];
-        const edge1_to_vert = [verts[tri_edge_node1], verts[indv]];
+        const edge0_to_vert = [tri_edge_verts[0], verts[indv]];
+        const edge1_to_vert = [tri_edge_verts[1], verts[indv]];
         
         let is_blocked_by_con_edge = false;
-        for (let iedge = 0; iedge < con_edges.length; iedge++)
+        for (let edge_c = 0; edge_c < con_edges.length; edge_c++)
         {
-          if ( isSameEdge(con_edges[iedge], [tri_edge_node0, tri_edge_node1]) )
+          if ( isSameEdge(con_edges[edge_c], [tri_edge_node0, tri_edge_node1]) )
           {
             is_blocked_by_con_edge = true;
             break;
           }
           
-          if (con_edges[iedge][0] == indv || con_edges[iedge][1] == indv)
-            continue; //doesn't count as blocking
-            
-          if (con_edges[iedge][0] == tri_edge_node0 || con_edges[iedge][1] == tri_edge_node0 ||
-              con_edges[iedge][0] == tri_edge_node1 || con_edges[iedge][1] == tri_edge_node1 )
-            continue; //doesn't count as blocking
-                     
-          const con_edge_verts = [verts[con_edges[iedge][0]], verts[con_edges[iedge][1]]];
-          if (isEdgeIntersecting(edge0_to_vert, con_edge_verts) || 
-              isEdgeIntersecting(edge1_to_vert, con_edge_verts))
+          const con_edge_verts = [verts[con_edges[edge_c][0]], verts[con_edges[edge_c][1]]];
+
+          const edge0_invisible_to_vert = isEdgeIntersecting(edge0_to_vert, con_edge_verts) &&
+                                          !isEdgeIntersectingAtEndpoint(edge0_to_vert, con_edge_verts);
+                                          
+          const edge1_invisible_to_vert = isEdgeIntersecting(edge1_to_vert, con_edge_verts) &&
+                                          !isEdgeIntersectingAtEndpoint(edge1_to_vert, con_edge_verts);
+          
+          if ( (con_edges[edge_c][0] != tri_edge_node0) && (con_edges[edge_c][1] != tri_edge_node0) &&
+               (con_edges[edge_c][0] != tri_edge_node1) && (con_edges[edge_c][1] != tri_edge_node1) )
+          {
+            if (edge0_invisible_to_vert || edge1_invisible_to_vert)
+            {
+              is_blocked_by_con_edge = true;
+              //console.log("tri" + itri + ", edge" + edge_t + ": vert" + indv + " blocked by conedge(a)" + edge_c);
+              break;
+            }
+          }
+          
+          //If con_edge is connected to tri_edge_node0, then check if tri_edge_node1 can see the vertex indv
+          if ( (con_edges[edge_c][0] == tri_edge_node0 || con_edges[edge_c][1] == tri_edge_node0)
+               && edge1_invisible_to_vert )
           {
             is_blocked_by_con_edge = true;
-            console.log("tri" + itri + ", edge" + node + ": vert" + indv + " blocked by conedge" + iedge);
+            //console.log("tri" + itri + ", edge" + edge_t + ": vert" + indv + " blocked by conedge(b)" + edge_c);
             break;
           }
+          
+          //If con_edge is connected to tri_edge_node1, then check if tri_edge_node0 can see the vertex indv
+          if ( (con_edges[edge_c][0] == tri_edge_node1 || con_edges[edge_c][1] == tri_edge_node1)
+               && edge0_invisible_to_vert )
+          {
+            is_blocked_by_con_edge = true;
+            //console.log("tri" + itri + ", edge" + edge_t + ": vert" + indv + " blocked by conedge(c)" + edge_c);
+            break;
+          }
+          
         } //loop over con edges
         
         if (is_blocked_by_con_edge) //one of the nodes of this edge can't see vertex i
-          continue;
-          
-        if (!isDelaunay2(tri_verts, verts[indv]))
-          console.log("Triangle " + itri + " and vertex " + indv + " are not Delaunay!");
-          
-      } //loop over vertices
-    } //loop over triangle edges
-    
-    /*
-    for (let i = 0; i < verts.length; i++)
-    {
-      if (i == cur_tri[0] || i == cur_tri[1] || i == cur_tri[2])
-        continue;
-        
-      let is_vert_blocked = false; //true if any node of triangle can't see vertex i
-      for (let node = 0; node < 3; node++)
-      {
-        const trinode_to_vert = [tri_verts[node], verts[i]];
-        const tri_opp_edge = [tri_verts[(node + 1) % 3], tri_verts[(node + 2) % 3]];
-        const is_blocked_by_tri = isEdgeIntersecting(trinode_to_vert, tri_opp_edge);
-        
-        if (is_blocked_by_tri)
-        {
-          console.log("tri" + itri + ", node" + node + ": vert" + i + " blocked by tri");
-          continue;
-        }
-          
-        let is_blocked_by_con_edge = false;
-        for (let iedge = 0; iedge < con_edges.length; iedge++)
-        {
-          if (con_edges[iedge][0] == cur_tri[node] || con_edges[iedge][1] == cur_tri[node] ||
-              con_edges[iedge][0] == i || con_edges[iedge][1] == i)
-          {
-            continue;
-          }
-            
-          const con_edge_verts = [verts[con_edges[iedge][0]], verts[con_edges[iedge][1]]];
-          if (isEdgeIntersecting(trinode_to_vert, con_edge_verts))
-          {
-            is_blocked_by_con_edge = true;
-            console.log("tri" + itri + ", node" + node + ": vert" + i + " blocked by conedge" + iedge);
-            break;
-          }
-        } //loop over con edges
-        
-        if (is_blocked_by_con_edge) //this node can't see vertex i
         {
           is_vert_blocked = true;
-          break;
+          continue;
         }
-      } //loop over nodes of triangle
+        
+      } //loop over triangle edges
 
+      if (!is_vert_blocked && !isDelaunay2(tri_verts, verts[indv]))
+        console.log("Triangle " + itri + " and vertex " + indv + " are not Delaunay!");      
       
-      if (is_vert_blocked)
-        continue;
-        
-      if (!isDelaunay2(tri_verts, verts[i]))
-        console.log("Triangle " + itri + " and vertex " + i + " are not Delaunay!");
-        
-    } //loop over vertices
-    */
-    
+    } //loop over verts   
   } //loop over triangles
   
   console.log("Check complete!");
-  
 }
