@@ -13,26 +13,32 @@ div.canvas {
   height: 600px;
 }
 
-div.log {
+.info_panel {
   border: 1px solid #444444;
-  width: 500px;
-  height: 189px;
   padding-top: 5px;
   padding-right: 5px; 
   padding-bottom: 5px;
   padding-left: 5px;
+}
+
+div.log {
+  width: 500px;
+  height: 204px;
   margin-bottom: 5px;
   overflow-y: scroll;
 }
 
-div.info {
-  border: 1px solid #444444;
+div.tri_info {
   width: 500px;
-  height: 390px;
-  padding-top: 5px;
-  padding-right: 5px; 
-  padding-bottom: 0px;
+  height: 284px;
+  margin-bottom: 5px;
   padding-left: 5px;
+}
+
+div.locate {
+  width: 500px;
+  padding-top: 10px;
+  padding-bottom: 10px;
 }
 
 button.small {

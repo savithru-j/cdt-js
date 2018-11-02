@@ -52,15 +52,27 @@ Count: <input class="small" type="number" id="txtnumrandedges" min="0" step="10"
 </canvas>
 </div>
 <div class="block">
-  <div class="log" id="div_log">
+  <div class="log info_panel" id="div_log">
     <b>Log</b>
     <br><br>
   </div>
-  <div class="info">
+  <div class="tri_info info_panel">
     <div id="coorddisplay"><b>Coordinates:</b> (0,0)</div>
     <br>
     <div id="div_info"></div>
   </div>
+  <div class="locate info_panel">
+    <div>
+      <div style="display:inline-block; width:170px">Locate vertex by index:</div>
+      <input id="txtlocatevertex" type="number" oninput="locateVertex()" min=0></input>
+    </div>
+    <p>
+    <div>
+      <div style="display:inline-block; width:170px">Locate triangle by index:</div>
+      <input id="txtlocatetriangle" type="number" oninput="locateTriangle()" min=0></input>
+    </div>
+  </div>
+  
 </div>
 
 <br><br>
@@ -70,14 +82,6 @@ Count: <input class="small" type="number" id="txtnumrandedges" min="0" step="10"
 <br>
 <textarea id="txttriangles" rows="20" cols="50" title="Each triangle is defined by the 3 indices to its vertices in the input vertex list">
 </textarea>
-</div>
-<div class="block" style="padding-left:10px">
-<p>
-Locate vertex:&nbsp 
-<input id="txtlocatevertex" type="number" oninput="locateVertex()" min=0></input>
-<p>
-Locate triangle: 
-<input id="txtlocatetriangle" type="number" oninput="locateTriangle()" min=0></input>
 </div>
 
 </body>
