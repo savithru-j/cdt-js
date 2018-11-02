@@ -27,7 +27,7 @@ Count: <input class="small" type="number" id="txtnumrandedges" min="0" step="10"
 <div class="block">
 <p>
 <span class="block" id="vertexinfo"> Vertex list:</span>
-<br><textarea id="txtvertices" rows="11" cols="50">
+<br><textarea id="txtvertices" rows="11" cols="50" title="Enter a list of (x,y) coordinates">
 0 0
 2 0
 1 1
@@ -38,13 +38,13 @@ Count: <input class="small" type="number" id="txtnumrandedges" min="0" step="10"
 <div class="block">
 <p>
 <span class="block" id="edgeinfo"> Constrained edge list:</span>
-<br><textarea id="txtedges" rows="11" cols="30"></textarea>
+<br><textarea id="txtedges" rows="11" cols="30" title="Each edge is specified by two indices to its end vertices"></textarea>
 </div>
 
 <hr>
 
 <button id="btntriangulate" class="big" onClick="triangulate()">Triangulate!</button>
-<button id="btncheck" class="big" onClick="checkTriangulation()">Check</button>
+<button id="btncheck" class="big" onClick="checkCDT()">Check</button>
 <p>
 
 <div class="block canvas">
@@ -68,7 +68,7 @@ Count: <input class="small" type="number" id="txtnumrandedges" min="0" step="10"
 <div class="block">
 <p>Triangle list:
 <br>
-<textarea id="txttriangles" rows="20" cols="50">
+<textarea id="txttriangles" rows="20" cols="50" title="Each triangle is defined by the 3 indices to its vertices in the input vertex list">
 </textarea>
 </div>
 <div class="block" style="padding-left:10px">
