@@ -29,9 +29,10 @@ Count: <input class="small" type="number" id="txtnumrandedges" min="0" step="10"
 <span class="block" id="vertexinfo"> Vertex list:</span>
 <br><textarea id="txtvertices" rows="11" cols="50" title="Enter a list of (x,y) coordinates">
 0 0
-2 0
+1 0
 1 1
-2.5 2
+0 1
+0.5 0.5
 </textarea>
 </div>
 
@@ -44,11 +45,18 @@ Count: <input class="small" type="number" id="txtnumrandedges" min="0" step="10"
 <hr>
 
 <button id="btntriangulate" class="big" onClick="triangulate()">Triangulate!</button>
-<button id="btncheck" class="big" onClick="checkCDT()">Check</button>
+<button id="btnreset" class="big" onClick="reset()">Reset</button>
+<input type="checkbox" id="checkboxConstrain" checked>Edge constraints active</input>
 <p>
 
 <div class="block canvas">
-<canvas id="main_canvas" width="600" height="600" onMouseMove="displayCoordinates(this,event)" onClick="displayTriangulationInfo(this,event)">
+<canvas id="main_canvas" width="600" height="600" 
+        onMouseMove="onCanvasMouseMove(this,event)"
+        onMouseDown="onCanvasMouseDown(this,event)"
+        onMouseUp="onCanvasMouseUp(this,event)"
+        onMouseOut="onCanvasMouseUp(this,event)"
+        onClick="displayTriangulationInfo(this,event)"
+        onWheel="onCanvasMouseWheel(this,event)">
 </canvas>
 </div>
 <div class="block">

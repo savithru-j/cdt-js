@@ -34,6 +34,12 @@ class Point
   {
     return "(" + this.x.toFixed(3) + ", " + this.y.toFixed(3) + ")";
   }
+  
+  copyFrom(p)
+  {
+    this.x = p.x;
+    this.y = p.y;
+  }
 }
 
 function cross(vec0, vec1)

@@ -4,14 +4,25 @@
 
 'use strict';
 
-var main_width = 600;
-var main_height = 600;
+var canvas_width = 600;
+var canvas_height = 600;
 
 var min_coord = new Point(0,0);
 var max_coord = new Point(1,1);
 var screenL = 1.0;
+var zoom_scale = 0.8;
+var last_canvas_coord = new Point(0,0);
+var mouse_down_coord = new Point(0,0);
+var canvas_translation = new Point(0,0);
+var prev_canvas_translation = new Point(0,0);
+var isMouseDown = false;
+var last_render_time = 0;
+var render_dt = 1000.0/30.0; //30 FPS
 
-var boundingL = 500.0;
+var selected_vertex_index = -1;
+var selected_triangle_index = -1;
+
+var boundingL = 100.0;
 
 const colorVertex = "#222222";
 const colorTriangle = "#EEEEEE";
@@ -187,15 +198,17 @@ function loadInputData()
   printToLog("Loaded " + globalMeshData.vert.length + " vertices and " +
              globalMeshData.con_edge.length + " constrained edges.");
 
-  resizeWindow();  
   var canvas = document.getElementById("main_canvas");
-  var ctx = canvas.getContext("2d");
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  canvas_width = canvas.width;
+  canvas_height = canvas.height;
     
   globalMeshData.tri = [];
   globalMeshData.adj = [];
   
-  renderTriangulation(globalMeshData);
+  selected_vertex_index = -1;
+  selected_triangle_index = -1;
+  
+  renderCanvas(true);
 }
 
 function genRandVertices()
@@ -292,13 +305,6 @@ function isEdgeValid(newEdge, edgeList, vertices)
   return true;
 }
 
-function resizeWindow()
-{
-  var canvas = document.getElementById("main_canvas");
-  canvas.width = main_width;
-  canvas.height = main_height;
-}
-
 function printToLog(str)
 {
   var div_log = document.getElementById("div_log");
@@ -309,39 +315,65 @@ function printToLog(str)
 
 function transformCoord(coord)
 {
-  var x = (coord.x - min_coord.x + 0.1*screenL) / (1.2*screenL) * main_width ;
-  var y = main_height - (coord.y - min_coord.y + 0.1*screenL) / (1.2*screenL) * main_height;
+  var x = ((coord.x - min_coord.x)/(screenL)*canvas_width + canvas_translation.x) * zoom_scale
+         + 0.5*canvas_width*(1 - zoom_scale);
+  var y = canvas_height - ((coord.y - min_coord.y)/(screenL)*canvas_height - canvas_translation.y) * zoom_scale
+         - 0.5*canvas_height*(1 - zoom_scale);
   return new Point(x, y);
 }
 
 function invTransformCoord(coord)
 {
-  var x = coord.x*1.2*screenL/main_width + min_coord.x - 0.1*screenL;
-  var y = (main_height - coord.y)*1.2*screenL/main_height + min_coord.y - 0.1*screenL;
-  
+  var x = ((coord.x - 0.5*canvas_width*(1 - zoom_scale))/zoom_scale - canvas_translation.x)*screenL/canvas_width + min_coord.x;
+  var y = ((canvas_height - coord.y - 0.5*canvas_height*(1 - zoom_scale))/zoom_scale + canvas_translation.y)*screenL/canvas_height + min_coord.y;
   return new Point(x, y);
 }
 
-function renderVertices(meshData)
+function renderCanvas(forceRender)
 {
   var canvas = document.getElementById("main_canvas");
   var ctx = canvas.getContext("2d");
   
+  if (!forceRender && (performance.now() - last_render_time) < render_dt)
+    return;
+  
+  //console.log("Render FPS: " + (1000.0/(performance.now() - last_render_time)));
+  
+  // Clear the entire canvas
+	ctx.clearRect(0,0,canvas_width,canvas_height);
+	
+	renderTriangles(ctx, globalMeshData);
+  renderEdges(ctx, globalMeshData);
+  renderVertices(ctx, globalMeshData);
+	
+	if (selected_vertex_index >= 0)
+	{
+	  renderSelectedVertex(ctx, selected_vertex_index);
+	}
+	else if (selected_triangle_index >= 0)
+	{
+	  renderSelectedTriangle(ctx, selected_triangle_index);
+	  renderEdges(ctx, globalMeshData);
+    renderVertices(ctx, globalMeshData);
+	}
+	
+	last_render_time = performance.now();
+}
+
+function renderVertices(ctx, meshData)
+{
   ctx.fillStyle = colorVertex;
   
-  ctx.beginPath();
   for(let i = 0; i < meshData.vert.length; i++)
   {
     let canvas_coord = transformCoord(meshData.vert[i]);
-    ctx.fillRect(canvas_coord.x-2,canvas_coord.y-2,4,4);
+    if(isPointVisible(canvas_coord))
+      ctx.fillRect(canvas_coord.x-2,canvas_coord.y-2,4,4);
   }
-  ctx.closePath();
 }
 
-function renderEdges(meshData)
+function renderEdges(ctx, meshData)
 {
-  var canvas = document.getElementById("main_canvas");
-  var ctx = canvas.getContext("2d");
   ctx.strokeStyle = colorConstrainedEdge;
   ctx.lineWidth = edgeWidth;
   
@@ -350,26 +382,24 @@ function renderEdges(meshData)
   
   for(let iedge = 0; iedge < edges.length; iedge++)
   {   
-    let v0 = verts[edges[iedge][0]];
-    let v1 = verts[edges[iedge][1]];
+    const v0 = verts[edges[iedge][0]];
+    const v1 = verts[edges[iedge][1]];
     
-    let canvas_coord = transformCoord(v0);
+    const canvas_coord0 = transformCoord(v0);
+    const canvas_coord1 = transformCoord(v1);
     
-    ctx.beginPath();
-    ctx.moveTo(canvas_coord.x,canvas_coord.y);   
-    canvas_coord = transformCoord(v1);
-    ctx.lineTo(canvas_coord.x,canvas_coord.y);
-    ctx.closePath();
-    ctx.stroke();
+    if(isEdgeVisible(canvas_coord0, canvas_coord1))
+    {    
+      ctx.beginPath();
+      ctx.moveTo(canvas_coord0.x,canvas_coord0.y);
+      ctx.lineTo(canvas_coord1.x,canvas_coord1.y);
+      ctx.stroke();
+    }
   }
 }
 
-function renderTriangulation(meshData)
+function renderTriangles(ctx, meshData)
 {
-  var canvas = document.getElementById("main_canvas");
-  var ctx = canvas.getContext("2d");
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-  
   var verts = meshData.vert;
   var triangles = meshData.tri;
   
@@ -379,115 +409,21 @@ function renderTriangulation(meshData)
   
   for(let itri = 0; itri < triangles.length; itri++)
   {
-    ctx.beginPath();
+    const canvas_coord0 = transformCoord(verts[triangles[itri][0]]);
+    const canvas_coord1 = transformCoord(verts[triangles[itri][1]]);
+    const canvas_coord2 = transformCoord(verts[triangles[itri][2]]);
     
-    let v0 = verts[triangles[itri][0]];
-    let canvas_coord = transformCoord(v0);
-    ctx.moveTo(canvas_coord.x,canvas_coord.y);
-    
-    for (let node = 1; node < 3; node++)
-    {
-      let v = verts[triangles[itri][node]];
-      let canvas_coord = transformCoord(v);
-      ctx.lineTo(canvas_coord.x,canvas_coord.y);
-    }
-    
-    ctx.closePath();
-    ctx.fill();
-    ctx.stroke();
-  }
-
-  renderEdges(meshData);
-  renderVertices(meshData, false);
-}
-
-function drawPath(path)
-{
-  if (path.length == 0)
-    return;
-    
-  var canvas = document.getElementById("main_canvas");
-  var ctx = canvas.getContext("2d");
-  
-  ctx.strokeStyle = "#7777FF";
-  ctx.fillStyle = "#1111FF";
-  ctx.lineWidth = 1;
-    
-  ctx.beginPath();
-  let canvas_coord = transformCoord(path[0]);
-  ctx.moveTo(canvas_coord.x,canvas_coord.y);
-  ctx.fillRect(canvas_coord.x-2,canvas_coord.y-2,4,4);
-  
-  for(let i = 1; i < path.length; i++)
-  {   
-    let canvas_coord = transformCoord(path[i]);
-    ctx.lineTo(canvas_coord.x,canvas_coord.y);
-  }
-  
-  ctx.stroke();
-}
-
-function displayCoordinates(canvas,e)
-{ 
-  var rect = canvas.getBoundingClientRect();
-  var screen_coord = new Point((e.clientX - rect.left),(e.clientY - rect.top));
-  var coord = invTransformCoord(screen_coord);
-  document.getElementById("coorddisplay").innerHTML = "<b>Coordinates:</b> " + coord.toStr();
-}
-
-function displayTriangulationInfo(canvas,e)
-{
-  var ctx = canvas.getContext("2d");
-  var rect = canvas.getBoundingClientRect();
-  var mouse_coord = new Point((e.clientX - rect.left),(e.clientY - rect.top));
-   
-  var verts = globalMeshData.vert;
-  var triangles = globalMeshData.tri;
-  var adjacency = globalMeshData.adj;
-   
-  if (verts.length == 0)
-    return;
-  
-  renderTriangulation(globalMeshData);
- 
-  var foundVertex = false;
-  for (let i = 0; i < verts.length; i++)
-  {
-    var coord = verts[i];
-    let canvas_coord = transformCoord(coord);
-    if (canvas_coord.sqDistanceTo(mouse_coord) <= 9)
-    {
-      renderSelectedVertex(ctx, i);
-      foundVertex = true;
-      break;
+    if(isTriangleVisible(canvas_coord0, canvas_coord1, canvas_coord2))
+    { 
+      ctx.beginPath();
+      ctx.moveTo(canvas_coord0.x,canvas_coord0.y);
+      ctx.lineTo(canvas_coord1.x,canvas_coord1.y);
+      ctx.lineTo(canvas_coord2.x,canvas_coord2.y);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
     }
   }
-  if (foundVertex)
-    return;
-       
-  var foundTriangle = false;
-  if (triangles.length > 0)
-  {
-    const mouse_phys_coord = invTransformCoord(mouse_coord);
-    const scaled_x = (mouse_phys_coord.x - min_coord.x)/screenL;
-    const scaled_y = (mouse_phys_coord.y - min_coord.y)/screenL;
-    const mouse_scaled_coord = new Point(scaled_x, scaled_y);
-  
-    const res = findEnclosingTriangle(mouse_scaled_coord, globalMeshData, 0);
-    const ind_tri = res[0];
-    
-    if (ind_tri >= 0)
-    {
-      renderSelectedTriangle(ctx, ind_tri);     
-      foundTriangle = true;
-      
-      renderEdges(globalMeshData);
-      renderVertices(globalMeshData, false);
-    }
-  }
-  
-  if (!foundVertex && !foundTriangle)
-    document.getElementById("div_info").innerHTML = "Click on a triangle or vertex for more info...";
 }
 
 function renderSelectedVertex(ctx, ind_vert)
@@ -572,7 +508,6 @@ function renderSelectedTriangle(ctx, ind_tri)
   ctx.arc(canvas_coord.x, canvas_coord.y, canvas_radius, 0, 2*Math.PI);
   ctx.stroke();  
     
-  
   document.getElementById("div_info").innerHTML = 
   "<b>Triangle:</b>" +
   "<br>&nbsp &nbsp Index: " + ind_tri +
@@ -581,28 +516,204 @@ function renderSelectedTriangle(ctx, ind_tri)
   "<br>&nbsp &nbsp Adjacent triangles: " + adj_str;
 }
 
+function isPointVisible(p)
+{
+  return (p.x >= 0 && p.x < canvas_width && p.y >=0 && p.y < canvas_height);
+}
+
+function isEdgeVisible(p0, p1)
+{
+  const p_min = new Point(Math.min(p0.x, p1.x), Math.min(p0.y, p1.y));
+  const p_max = new Point(Math.max(p0.x, p1.x), Math.max(p0.y, p1.y));
+  return (p_min.x < canvas_width && p_max.x >= 0 && 
+          p_min.y < canvas_height && p_max.y >= 0);
+}
+
+function isTriangleVisible(p0, p1, p2)
+{
+  const p_min = new Point(Math.min(Math.min(p0.x, p1.x), p2.x), Math.min(Math.min(p0.y, p1.y), p2.y));
+  const p_max = new Point(Math.max(Math.max(p0.x, p1.x), p2.x), Math.max(Math.max(p0.y, p1.y), p2.y));
+  return (p_min.x < canvas_width && p_max.x >= 0 && 
+          p_min.y < canvas_height && p_max.y >= 0);
+}
+
+function drawPath(path)
+{
+  if (path.length == 0)
+    return;
+    
+  var canvas = document.getElementById("main_canvas");
+  var ctx = canvas.getContext("2d");
+  
+  ctx.strokeStyle = "#7777FF";
+  ctx.fillStyle = "#1111FF";
+  ctx.lineWidth = 1;
+    
+  ctx.beginPath();
+  let canvas_coord = transformCoord(path[0]);
+  ctx.moveTo(canvas_coord.x,canvas_coord.y);
+  ctx.fillRect(canvas_coord.x-2,canvas_coord.y-2,4,4);
+  
+  for(let i = 1; i < path.length; i++)
+  {   
+    let canvas_coord = transformCoord(path[i]);
+    ctx.lineTo(canvas_coord.x,canvas_coord.y);
+  }
+  
+  ctx.stroke();
+}
+
+function onCanvasMouseDown(canvas, e)
+{
+  if (e.buttons == 1)
+  {
+    isMouseDown = true;
+    var rect = canvas.getBoundingClientRect();
+    mouse_down_coord.x = e.clientX - rect.left;
+    mouse_down_coord.y = e.clientY - rect.top;
+  }
+}
+
+function onCanvasMouseUp(canvas, e)
+{
+  if (isMouseDown)
+  {
+    canvas_translation.x += (last_canvas_coord.x - mouse_down_coord.x) / zoom_scale;
+    canvas_translation.y += (last_canvas_coord.y - mouse_down_coord.y) / zoom_scale;  
+    prev_canvas_translation.copyFrom(canvas_translation);
+    renderCanvas(true);
+  }
+  
+  isMouseDown = false;
+}
+
+function onCanvasMouseMove(canvas, e)
+{
+  var rect = canvas.getBoundingClientRect();
+  last_canvas_coord.x = e.clientX - rect.left;
+  last_canvas_coord.y = e.clientY - rect.top;
+  var phys_coord = invTransformCoord(last_canvas_coord);
+  document.getElementById("coorddisplay").innerHTML = "<b>Coordinates:</b> " + phys_coord.toStr();
+  
+  if (isMouseDown) //left button clicked
+  {
+    canvas_translation.x += (last_canvas_coord.x - mouse_down_coord.x) / zoom_scale;
+    canvas_translation.y += (last_canvas_coord.y - mouse_down_coord.y) / zoom_scale;
+    renderCanvas(false);
+    canvas_translation.copyFrom(prev_canvas_translation);
+  }
+}
+
+function onCanvasMouseWheel(canvas, e)
+{
+  e.preventDefault();
+  
+  if (isMouseDown)
+    return;
+  
+  if (e.deltaY < 0)
+    zoom_scale *= 1.05;
+  else if(e.deltaY > 0)
+    zoom_scale *= 0.952380952;
+    
+  renderCanvas(false);
+}
+
+function reset()
+{
+  var canvas = document.getElementById("main_canvas");
+  var ctx = canvas.getContext("2d");
+  
+  // Clear the entire canvas
+	ctx.clearRect(0,0,canvas_width,canvas_height);
+	
+	//Clear mesh data
+	globalMeshData.vert = [];
+  globalMeshData.scaled_vert = [];
+  globalMeshData.bin = [];
+  globalMeshData.tri = [];
+  globalMeshData.adj = [];
+  globalMeshData.con_edge = [];
+  globalMeshData.vert_to_tri = [];
+  
+  //Reset view
+  zoom_scale = 0.8;
+  last_canvas_coord = new Point(0,0);
+  mouse_down_coord = new Point(0,0);
+  canvas_translation = new Point(0,0);
+  prev_canvas_translation = new Point(0,0);
+  
+  selected_vertex_index = -1;
+  selected_triangle_index = -1;
+}
+
+function displayTriangulationInfo(canvas,e)
+{
+  var ctx = canvas.getContext("2d");
+  var rect = canvas.getBoundingClientRect();
+  var mouse_coord = new Point((e.clientX - rect.left),(e.clientY - rect.top));
+   
+  var verts = globalMeshData.vert;
+  var triangles = globalMeshData.tri;
+  var adjacency = globalMeshData.adj;
+   
+  if (verts.length == 0)
+    return;
+ 
+  selected_vertex_index = -1;
+  selected_triangle_index = -1;
+
+  for (let i = 0; i < verts.length; i++)
+  {
+    var coord = verts[i];
+    let canvas_coord = transformCoord(coord);
+    if (canvas_coord.sqDistanceTo(mouse_coord) <= 9)
+    {
+      selected_vertex_index = i;
+      break;
+    }
+  }
+
+  if (selected_vertex_index == -1 && triangles.length > 0)
+  {
+    const mouse_phys_coord = invTransformCoord(mouse_coord);
+    const scaled_x = (mouse_phys_coord.x - min_coord.x)/screenL;
+    const scaled_y = (mouse_phys_coord.y - min_coord.y)/screenL;
+    const mouse_scaled_coord = new Point(scaled_x, scaled_y);
+  
+    const res = findEnclosingTriangle(mouse_scaled_coord, globalMeshData, 0);
+    const ind_tri = res[0];
+    
+    if (ind_tri >= 0)   
+      selected_triangle_index = ind_tri;
+  }
+  
+  if (selected_vertex_index == -1 && selected_triangle_index == -1)
+    document.getElementById("div_info").innerHTML = "Click on a triangle or vertex for more info...";
+  
+  renderCanvas(true);
+}
+
 function locateVertex()
 {
-  renderTriangulation(globalMeshData);
-  
   var ind = document.getElementById("txtlocatevertex").value;
   if (ind == "" || ind < 0 || ind >= globalMeshData.vert.length)
     return;
-    
-  var ctx = document.getElementById("main_canvas").getContext("2d");
-  renderSelectedVertex(ctx, ind);
+  
+  selected_vertex_index = ind;
+  selected_triangle_index = -1;
+  renderCanvas(true);
 }
 
 function locateTriangle()
 {
-  renderTriangulation(globalMeshData);
-  
   var ind = document.getElementById("txtlocatetriangle").value;
   if (ind == "" || ind < 0 || ind >= globalMeshData.tri.length)
     return;
     
-  var ctx = document.getElementById("main_canvas").getContext("2d");
-  renderSelectedTriangle(ctx, ind);
+  selected_vertex_index = -1;
+  selected_triangle_index = ind;
+  renderCanvas(true);
 }
 
 function triangulate()
@@ -610,7 +721,10 @@ function triangulate()
   const nVertex = globalMeshData.vert.length;
   console.log("nVertex: " + nVertex);
   if (nVertex === 0)
+  {
+    printToLog("No input vertices to triangulate.");
     return;
+  }
     
   console.time("Delaunay");
   var t0 = performance.now();
@@ -672,29 +786,35 @@ function triangulate()
   var prev_min_coord = min_coord;
   var prev_max_coord = max_coord;
   var prev_screenL = screenL;
-   
-  vertex_list = scaledverts;
+  var orig_verts = globalMeshData.vert;
+  globalMeshData.vert = scaledverts;
   min_coord = new Point(-D+0.5,-D+0.5);
   max_coord = new Point(D+0.5,D+0.5);
   screenL = 2.0*D;
 */
-   
+  
   delaunay(globalMeshData);
-  var t1 = performance.now();
+  var t_delaunay = performance.now() - t0;
   console.timeEnd("Delaunay");
-  printToLog("Computed Delaunay triangulation in " + (t1 - t0).toFixed(2) + " ms.");
   
+  if(document.getElementById("checkboxConstrain").checked &&
+     globalMeshData.con_edge.length > 0)
+  {
+    t0 = performance.now();
+    constrainEdges(globalMeshData);
+    var t_constrain = performance.now() - t0;
+    console.log("Constrained edges in " + t_constrain.toFixed(2) + " ms.");
+    printToLog("Computed constrained Delaunay triangulation in " + (t_delaunay + t_constrain).toFixed(2) + " ms.");
+  }
+  else
+    printToLog("Computed Delaunay triangulation in " + t_delaunay.toFixed(2) + " ms.");
+    
+  console.time("renderCanvas");
   t0 = performance.now();
-  constrainEdges(globalMeshData);
-  t1 = performance.now();
-  console.log("Constrained edges in " + (t1 - t0).toFixed(2) + " ms.");
-  
-  console.time("renderTriangulation");
-  t0 = performance.now();
-  renderTriangulation(globalMeshData);
-  t1 = performance.now();
-  console.timeEnd("renderTriangulation");
-  printToLog("Rendered triangulation in " + (t1 - t0).toFixed(2) + " ms.");
+  renderCanvas(true);
+  var t_render = performance.now() - t0;
+  console.timeEnd("renderCanvas");
+  printToLog("Rendered triangulation in " + t_render.toFixed(2) + " ms.");
   
   printTriangles(globalMeshData);
   
@@ -726,7 +846,6 @@ function delaunay(meshData)
   for (let i = 0; i < N; i++)
   {
     const new_i = bins[i].ind;
-    //renderTriangulation(meshData);
     
     const res = findEnclosingTriangle(verts[new_i], meshData, ind_tri);
     ind_tri = res[0];
@@ -1080,11 +1199,6 @@ function printTriangles(meshData)
     content += meshData.tri[i][0] + ", " + meshData.tri[i][1] + ", " + meshData.tri[i][2] + "\n";
   
   txttri.innerHTML = content;
-}
-
-function constrain()
-{
-  constrainEdges(globalMeshData);
 }
 
 function constrainEdges(meshData)
