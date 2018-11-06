@@ -16,6 +16,7 @@ var mouse_down_coord = new Point(0,0);
 var canvas_translation = new Point(0,0);
 var prev_canvas_translation = new Point(0,0);
 var isMouseDown = false;
+var last_mousedown_time = 0;
 var last_render_time = 0;
 var render_dt = 1000.0/30.0; //30 FPS
 
@@ -45,6 +46,8 @@ var globalMeshData =
   con_edge: [],
   vert_to_tri: []
 };
+
+var point_loc_search_path = [];
 
 function readVertices()
 {
@@ -207,6 +210,7 @@ function loadInputData()
   
   selected_vertex_index = -1;
   selected_triangle_index = -1;
+  point_loc_search_path = [];
   
   renderCanvas(true);
 }
@@ -357,6 +361,9 @@ function renderCanvas(forceRender)
     renderVertices(ctx, globalMeshData);
 	}
 	
+	if (point_loc_search_path.length > 0)
+	  drawPath(point_loc_search_path);
+	
 	last_render_time = performance.now();
 }
 
@@ -414,7 +421,7 @@ function renderTriangles(ctx, meshData)
     const canvas_coord2 = transformCoord(verts[triangles[itri][2]]);
     
     if(isTriangleVisible(canvas_coord0, canvas_coord1, canvas_coord2))
-    { 
+    {
       ctx.beginPath();
       ctx.moveTo(canvas_coord0.x,canvas_coord0.y);
       ctx.lineTo(canvas_coord1.x,canvas_coord1.y);
@@ -545,9 +552,9 @@ function drawPath(path)
   var canvas = document.getElementById("main_canvas");
   var ctx = canvas.getContext("2d");
   
-  ctx.strokeStyle = "#7777FF";
-  ctx.fillStyle = "#1111FF";
-  ctx.lineWidth = 1;
+  ctx.strokeStyle = "#fcaf3e";
+  ctx.fillStyle = "#f57900";
+  ctx.lineWidth = 2;
     
   ctx.beginPath();
   let canvas_coord = transformCoord(path[0]);
@@ -571,6 +578,7 @@ function onCanvasMouseDown(canvas, e)
     var rect = canvas.getBoundingClientRect();
     mouse_down_coord.x = e.clientX - rect.left;
     mouse_down_coord.y = e.clientY - rect.top;
+    last_mousedown_time = performance.now();
   }
 }
 
@@ -578,12 +586,18 @@ function onCanvasMouseUp(canvas, e)
 {
   if (isMouseDown)
   {
-    canvas_translation.x += (last_canvas_coord.x - mouse_down_coord.x) / zoom_scale;
-    canvas_translation.y += (last_canvas_coord.y - mouse_down_coord.y) / zoom_scale;  
-    prev_canvas_translation.copyFrom(canvas_translation);
-    renderCanvas(true);
+    if (performance.now() - last_mousedown_time > 150)
+    {
+      canvas_translation.x += (last_canvas_coord.x - mouse_down_coord.x) / zoom_scale;
+      canvas_translation.y += (last_canvas_coord.y - mouse_down_coord.y) / zoom_scale;  
+      prev_canvas_translation.copyFrom(canvas_translation);
+      renderCanvas(true);
+    }
+    else
+    {
+      displayTriangulationInfo(canvas, e);
+    }
   }
-  
   isMouseDown = false;
 }
 
@@ -595,7 +609,7 @@ function onCanvasMouseMove(canvas, e)
   var phys_coord = invTransformCoord(last_canvas_coord);
   document.getElementById("coorddisplay").innerHTML = "<b>Coordinates:</b> " + phys_coord.toStr();
   
-  if (isMouseDown) //left button clicked
+  if (isMouseDown && (performance.now() - last_mousedown_time > 100)) //left button clicked
   {
     canvas_translation.x += (last_canvas_coord.x - mouse_down_coord.x) / zoom_scale;
     canvas_translation.y += (last_canvas_coord.y - mouse_down_coord.y) / zoom_scale;
@@ -649,7 +663,7 @@ function reset()
 
 function displayTriangulationInfo(canvas,e)
 {
-  var ctx = canvas.getContext("2d");
+  //var ctx = canvas.getContext("2d");
   var rect = canvas.getBoundingClientRect();
   var mouse_coord = new Point((e.clientX - rect.left),(e.clientY - rect.top));
    
@@ -681,7 +695,7 @@ function displayTriangulationInfo(canvas,e)
     const scaled_y = (mouse_phys_coord.y - min_coord.y)/screenL;
     const mouse_scaled_coord = new Point(scaled_x, scaled_y);
   
-    const res = findEnclosingTriangle(mouse_scaled_coord, globalMeshData, 0);
+    const res = findEnclosingTriangle(mouse_scaled_coord, globalMeshData, Math.floor(triangles.length/2));
     const ind_tri = res[0];
     
     if (ind_tri >= 0)   
@@ -726,7 +740,6 @@ function triangulate()
     return;
   }
     
-  console.time("Delaunay");
   var t0 = performance.now();
   
   const nBinsX = Math.round(Math.pow(nVertex, 0.25));
@@ -763,12 +776,20 @@ function triangulate()
   //Add super-triangle vertices (far away)
   const D = boundingL;
   scaledverts.push(new Point(-D+0.5, -D+0.5));
-  scaledverts.push(new Point(D+0.5, -D+0.5));
-  scaledverts.push(new Point(0.5, D+0.5));
-  
+  scaledverts.push(new Point( D+0.5, -D+0.5));
+  scaledverts.push(new Point(   0.5,  D+0.5));
   globalMeshData.vert.push(new Point(screenL*(-D+0.5) + min_coord.x, screenL*(-D+0.5) + min_coord.y));
-  globalMeshData.vert.push(new Point(screenL*(D+0.5) + min_coord.x, screenL*(-D+0.5) + min_coord.y));
-  globalMeshData.vert.push(new Point(screenL*(0.5) + min_coord.x, screenL*(D+0.5) + min_coord.y));
+  globalMeshData.vert.push(new Point(screenL*( D+0.5) + min_coord.x, screenL*(-D+0.5) + min_coord.y));
+  globalMeshData.vert.push(new Point(screenL*(   0.5) + min_coord.x, screenL*( D+0.5) + min_coord.y));
+  
+//  scaledverts.push(new Point(-D+0.5, -D+0.5));
+//  scaledverts.push(new Point( D+0.5, -D+0.5));
+//  scaledverts.push(new Point( D+0.5,  D+0.5));
+//  scaledverts.push(new Point(-D+0.5,  D+0.5));
+//  globalMeshData.vert.push(new Point(screenL*(-D+0.5) + min_coord.x, screenL*(-D+0.5) + min_coord.y));
+//  globalMeshData.vert.push(new Point(screenL*( D+0.5) + min_coord.x, screenL*(-D+0.5) + min_coord.y));
+//  globalMeshData.vert.push(new Point(screenL*( D+0.5) + min_coord.x, screenL*( D+0.5) + min_coord.y));
+//  globalMeshData.vert.push(new Point(screenL*(-D+0.5) + min_coord.x, screenL*( D+0.5) + min_coord.y));
     
   //Sort the vertices in ascending bin order
   bin_index.sort(binSorter);
@@ -778,25 +799,25 @@ function triangulate()
   
   globalMeshData.scaled_vert = scaledverts;
   globalMeshData.bin = bin_index;
-  globalMeshData.tri = [[nVertex, (nVertex+1), (nVertex+2)]]; //super-triangle
-  globalMeshData.adj = [[-1, -1, -1]]; //adjacency
+  
+  //Super-triangle connectivity
+  globalMeshData.tri = [[nVertex, (nVertex+1), (nVertex+2)]];
+  globalMeshData.adj = [[-1, -1, -1]];
+
+  //Super-quad connectivity  
+//  globalMeshData.tri = [[nVertex, (nVertex+1), (nVertex+3)],
+//                        [(nVertex+2), (nVertex+3), (nVertex+1)]];
+//  globalMeshData.adj = [[1, -1, -1],
+//                        [0, -1, -1]];
+                        
   globalMeshData.vert_to_tri = [];
   
-/*
-  var prev_min_coord = min_coord;
-  var prev_max_coord = max_coord;
-  var prev_screenL = screenL;
-  var orig_verts = globalMeshData.vert;
-  globalMeshData.vert = scaledverts;
-  min_coord = new Point(-D+0.5,-D+0.5);
-  max_coord = new Point(D+0.5,D+0.5);
-  screenL = 2.0*D;
-*/
-  
+  //Compute Delaunay triangulation  
   delaunay(globalMeshData);
   var t_delaunay = performance.now() - t0;
-  console.timeEnd("Delaunay");
+  console.log("Delaunay triangulation in " + t_delaunay.toFixed(2) + " ms.");
   
+  //Constrain edges if required
   if(document.getElementById("checkboxConstrain").checked &&
      globalMeshData.con_edge.length > 0)
   {
@@ -808,7 +829,8 @@ function triangulate()
   }
   else
     printToLog("Computed Delaunay triangulation in " + t_delaunay.toFixed(2) + " ms.");
-    
+  
+  //Visualize
   console.time("renderCanvas");
   t0 = performance.now();
   renderCanvas(true);
@@ -816,6 +838,7 @@ function triangulate()
   console.timeEnd("renderCanvas");
   printToLog("Rendered triangulation in " + t_render.toFixed(2) + " ms.");
   
+  //Output triangles
   printTriangles(globalMeshData);
   
   document.getElementById("div_info").innerHTML = "Click on a triangle or vertex for more info...";
@@ -838,7 +861,7 @@ function delaunay(meshData)
   var triangles = meshData.tri;
   var adjacency = meshData.adj;
   
-  const N = verts.length - 3; //vertices includes super triangle nodes
+  const N = verts.length - 3; //vertices includes super-triangle nodes
   
   var ind_tri = 0; //points to the super-triangle
   var nhops_total = 0;
@@ -918,7 +941,7 @@ function findEnclosingTriangle(target_vertex, meshData, ind_tri_cur)
   var triangles = meshData.tri;
   var adjacency = meshData.adj;
   const max_hops = Math.max(10, adjacency.length);
-   
+  
   var found_tri = false;
   var nhops = 0;
   var path = [];
@@ -930,22 +953,26 @@ function findEnclosingTriangle(target_vertex, meshData, ind_tri_cur)
       break;
     }
       
-    let tri_cur = triangles[ind_tri_cur];
+    const tri_cur = triangles[ind_tri_cur];
     
-    var centroid = vertices[tri_cur[0]].add(vertices[tri_cur[1]]).add(vertices[tri_cur[2]]);
-    centroid.x /= 3.0;
-    centroid.y /= 3.0;
-    path[nhops] = centroid;
-    
-    let bary_coord = barycentericCoordTriangle(target_vertex, 
-                       vertices[tri_cur[0]],  vertices[tri_cur[1]], vertices[tri_cur[2]]);
+    const bary_coord = barycentericCoordTriangle(target_vertex, 
+                          vertices[tri_cur[0]], vertices[tri_cur[1]], vertices[tri_cur[2]]);
                        
     if (bary_coord.s < 0.0)
+    {
       ind_tri_cur = adjacency[ind_tri_cur][1]; //should move to the triangle opposite edge1
+      path[nhops] = vertices[tri_cur[2]].add(vertices[tri_cur[0]]).scale(0.5);
+    }
     else if (bary_coord.t < 0.0)
+    {
       ind_tri_cur = adjacency[ind_tri_cur][2]; //should move to the triangle opposite edge2
+      path[nhops] = vertices[tri_cur[0]].add(vertices[tri_cur[1]]).scale(0.5);
+    }
     else if (bary_coord.u < 0.0)
+    {
       ind_tri_cur = adjacency[ind_tri_cur][0]; //should move to the triangle opposite edge0
+      path[nhops] = vertices[tri_cur[1]].add(vertices[tri_cur[2]]).scale(0.5);
+    }
     else if (bary_coord.s >= 0.0 && 
              bary_coord.t >= 0.0 && 
              bary_coord.u >= 0.0)
@@ -958,9 +985,17 @@ function findEnclosingTriangle(target_vertex, meshData, ind_tri_cur)
   
   if(!found_tri)
   {
+    //const res_slow = findEnclosingTriangleSlow(target_vertex, meshData, ind_tri_cur)
+    //if (res_slow[0] >= 0)
+    //  return res_slow;
+    printToLog("Failed to locate triangle containing vertex (" + 
+               target_vertex.x.toFixed(4) + ", " + target_vertex.y.toFixed(4) + "). "
+               + "Input vertices may be too close to each other.");
+    
     console.log("nhops: " + (nhops-1));
-    drawPath(path);
-    throw "Could not locate triangle!";
+    point_loc_search_path = path;
+    renderCanvas();
+    throw "Could not locate the triangle that encloses (" + target_vertex.x + ", " + target_vertex.y + ")!";
   }
   
   //console.log("nhops: " + (nhops-1));
@@ -972,20 +1007,34 @@ function findEnclosingTriangleSlow(target_vertex, meshData, ind_tri_cur)
 {
   var vertices = meshData.scaled_vert;
   var triangles = meshData.tri;
-   
+  
   for (let ind_tri = 0; ind_tri < triangles.length; ind_tri++)
   {
-    let tri_cur = triangles[ind_tri];
-    let bary_coord = barycentericCoordTriangle(target_vertex, 
-                       vertices[tri_cur[0]],  vertices[tri_cur[1]], vertices[tri_cur[2]]);
-    console.log(bary_coord);                   
-    if (bary_coord.s >= 0.0 && bary_coord.t >= 0.0 && bary_coord.u >= 0.0)
-    {
-      return [ind_tri, ind_tri+1];
-    }
+    const tri_cur = triangles[ind_tri];
+    
+    //Skip triangle if target is to the right of any of the edges
+    if (getPointOrientation([vertices[tri_cur[0]],  vertices[tri_cur[1]]], target_vertex) < 0)
+      continue;
+      
+    if (getPointOrientation([vertices[tri_cur[1]],  vertices[tri_cur[2]]], target_vertex) < 0)
+      continue;
+      
+    if (getPointOrientation([vertices[tri_cur[2]],  vertices[tri_cur[0]]], target_vertex) < 0)
+      continue;
+      
+    //Point is inside triangle if it reaches here
+    return [ind_tri, ind_tri+1];
+    
+//    const bary_coord = barycentericCoordTriangle(target_vertex, 
+//                          vertices[tri_cur[0]],  vertices[tri_cur[1]], vertices[tri_cur[2]]);
+//                     
+//    if (bary_coord.s >= 0.0 && bary_coord.t >= 0.0 && bary_coord.u >= 0.0)
+//    {
+//      return [ind_tri, ind_tri+1];
+//   }
   }
   
-  throw "Could not locate triangle!";
+  throw "Could not locate the triangle that encloses (" + target_vertex.x + ", " + target_vertex.y + ")!";
   return [-1, triangles.length];
 }
 

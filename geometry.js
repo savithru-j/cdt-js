@@ -25,6 +25,11 @@ class Point
     return new Point(this.x - p1.x, this.y - p1.y);
   }
   
+  scale(s)
+  {
+    return new Point(this.x*s, this.y*s);
+  }
+  
   sqDistanceTo(p1)
   {
     return (this.x - p1.x)*(this.x - p1.x) + (this.y - p1.y)*(this.y - p1.y);
