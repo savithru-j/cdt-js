@@ -1,3 +1,7 @@
+body {
+    margin: 0px;
+}
+
 span.block {
     display: inline-block;
 }
@@ -13,26 +17,39 @@ div.canvas {
   height: 600px;
 }
 
+.nav_panel {
+  border-right: 2px solid #444444;
+  padding-top: 10px;
+  padding-left: 10px;
+  padding-right: 10px;
+  background-color: #E0E0E0;
+}
+
+.nav_panel_tile {
+  text-align: center;
+  padding-bottom: 5px;
+}
+
 .info_panel {
-  border: 1px solid #444444;
+  border-bottom: 2px solid #444444;
+  border-right: 2px solid #444444;
   padding-top: 5px;
-  padding-right: 5px; 
+  padding-right: 5px;
   padding-bottom: 5px;
   padding-left: 5px;
+  background-color: #E0E0E0;
 }
 
 div.log {
-  width: 500px;
-  height: 204px;
-  margin-bottom: 5px;
+  width: calc(50% - 12px);
+  height: calc(1220px - 80vh);
   overflow-y: scroll;
 }
 
 div.tri_info {
-  width: 500px;
-  height: 284px;
-  margin-bottom: 5px;
-  padding-left: 5px;
+  width: calc(50% - 12px);
+  height: calc(1220px - 80vh);
+  overflow: hidden;
 }
 
 div.locate {
@@ -43,15 +60,16 @@ div.locate {
 
 button.small {
   width: 200px;
-  height: 30px;
+  height: 35px;
+  ali
 }
 
 button.big {
   width: 200px;
-  height: 40px;
+  height: 45px;
 }
 
 input.small {
   width: 80px;
-  height: 25px;
+  height: 20px;
 }

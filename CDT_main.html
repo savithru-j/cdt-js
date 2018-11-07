@@ -8,67 +8,86 @@
 </head>
 <body>
 
-<div class="block">
-<p>Choose vertex file: 
-<input type="file" id="filevertex" onChange="readVertices()">
+<div class="block nav_panel" style="width:300px; position:relative">
 
-<p>Choose edge file: &nbsp 
-<input type="file" id="fileedge" onChange="readEdges()"/>
+  <div class="nav_panel_tile">
+    <button id="btngenrandomvertex" class="small" onClick="genRandVertices()">Generate random vertices</button>
+  </div>
+  <div class="nav_panel_tile">
+    Count: <input class="small" type="number" id="txtnumrandvertex" min="0" step="10" value="10">
+  </div>
 
-<p><button id="btngenrandomvertex" class="small" onClick="genRandVertices()">Generate random vertices</button>
-Count: <input class="small" type="number" id="txtnumrandvertex" min="3" step="10" value="10">
+  <div class="nav_panel_tile" style="margin-top:10px;">
+    <button id="btngenrandomedges" class="small" onClick="genRandEdges()">Generate random edges</button>
+  </div>
+  <div class="nav_panel_tile">
+    Count: <input class="small" type="number" id="txtnumrandedges" min="0" step="10" value="5">
+  </div>
 
-<p><button id="btngenrandomedges" class="small" onClick="genRandEdges()">Generate random edges</button>
-Count: <input class="small" type="number" id="txtnumrandedges" min="0" step="10" value="5">
+  <!-- <div class="nav_panel_tile" style="height:5px"></div> -->
+  <hr style="margin-top:10px; margin-bottom:10px;">
 
-<p><button id="btnloadinput" class="small" onClick="loadInputData()">Load input data</button>
-</div>
+  <div>
+    Load vertices from file:
+    <input type="file" id="filevertex" onChange="readVertices()">
+  </div>
+  <div style="margin-top:10px">
+    Load constrained edges from file:
+    <input type="file" id="fileedge" onChange="readEdges()">
+  </div>
 
-<div class="block">
-<p>
-<span class="block" id="vertexinfo"> Vertex list:</span>
-<br><textarea id="txtvertices" rows="11" cols="50" title="Enter a list of (x,y) coordinates">
+  <hr style="margin-top:10px; margin-bottom:10px;">
+
+  <div class="nav_panel_tile">
+    <button id="btntriangulate" class="big" onClick="triangulate()">Triangulate!</button>
+  </div>
+  <div class="nav_panel_tile" style="margin-top:5px">
+  <button id="btnreset" class="small" onClick="reset()">Reset</button>
+  </div>
+  <div class="nav_panel_tile" style="margin-top:5px">
+  <button id="btnloadinput" class="small" onClick="loadInputData()">Reload input data</button>
+  </div>
+
+  <div style="display:table; margin-top:5px; margin-left:auto; margin-right:auto">
+    <input type="checkbox" id="checkboxConstrain" checked>Edge constraints active</input>
+    <br>
+    <input type="checkbox" id="checkboxShowVertices" checked>Show vertices</input>
+  </div>
+
+  <hr style="margin-top:10px; margin-bottom:10px;">
+
+  <div id="vertexinfo">Vertex list:</div>
+  <textarea id="txtvertices" rows="10" style="width:100%; box-sizing: border-box;" title="Enter a list of (x,y) coordinates">
 0 0
 1 0
 1 1
 0 1
-0.5 0.5
-</textarea>
+0.5 0.5</textarea>
+
+  <br><br>
+  <div id="edgeinfo">Constrained edge list:</div>
+  <textarea id="txtedges" rows="10" style="width:100%; box-sizing: border-box;" title="Each edge is specified by the indices to its end vertices"></textarea>
+
+  <br><br>
+  <div>Triangle list:</div>
+  <textarea id="txttriangles" rows="20" style="width:100%; box-sizing: border-box;"
+            title="Each triangle is defined by the 3 indices to its vertices in the input vertex list">
+  </textarea>
+
 </div>
-
-<div class="block">
-<p>
-<span class="block" id="edgeinfo"> Constrained edge list:</span>
-<br><textarea id="txtedges" rows="11" cols="30" title="Each edge is specified by two indices to its end vertices"></textarea>
-</div>
-
-<hr>
-
-<button id="btntriangulate" class="big" onClick="triangulate()">Triangulate!</button>
-<button id="btnreset" class="big" onClick="reset()">Reset</button>
-<input type="checkbox" id="checkboxConstrain" checked>Edge constraints active</input>
-<p>
-
-<div class="block canvas">
-<canvas id="main_canvas" width="600" height="600" 
-        onMouseMove="onCanvasMouseMove(this,event)"
-        onMouseDown="onCanvasMouseDown(this,event)"
-        onMouseUp="onCanvasMouseUp(this,event)"
-        onMouseOut="onCanvasMouseUp(this,event)"
-        onWheel="onCanvasMouseWheel(this,event)">
-</canvas>
-</div>
-<div class="block">
-  <div class="log info_panel" id="div_log">
-    <b>Log</b>
-    <br><br>
+<div class="block" style="width:calc(100% - 322px); position:absolute;">
+  <div style="height:80vh;">
+  <canvas id="main_canvas" style="width:100%; height:80vh; position:absolute; border-bottom:2px solid #444444;"
+          onMouseMove="onCanvasMouseMove(this,event)"
+          onMouseDown="onCanvasMouseDown(this,event)"
+          onMouseUp="onCanvasMouseUp(this,event)"
+          onMouseOut="onCanvasMouseUp(this,event)"
+          onWheel="onCanvasMouseWheel(this,event)">
+  </canvas>
   </div>
-  <div class="tri_info info_panel">
+  <div class="block tri_info info_panel">
     <div id="coorddisplay"><b>Coordinates:</b> (0,0)</div>
     <br>
-    <div id="div_info"></div>
-  </div>
-  <div class="locate info_panel">
     <div>
       <div style="display:inline-block; width:170px">Locate vertex by index:</div>
       <input id="txtlocatevertex" type="number" oninput="locateVertex()" min=0></input>
@@ -78,18 +97,15 @@ Count: <input class="small" type="number" id="txtnumrandedges" min="0" step="10"
       <div style="display:inline-block; width:170px">Locate triangle by index:</div>
       <input id="txtlocatetriangle" type="number" oninput="locateTriangle()" min=0></input>
     </div>
+    <br>
+    <div id="div_info"></div>
+  </div
+  ><div class="block log info_panel" id="div_log">
+    <b>Log:</b>
+    <br><br>
   </div>
-  
 </div>
 
-<br><br>
-
-<div class="block">
-<p>Triangle list:
-<br>
-<textarea id="txttriangles" rows="20" cols="50" title="Each triangle is defined by the 3 indices to its vertices in the input vertex list">
-</textarea>
-</div>
 
 </body>
 </html>
