@@ -24,13 +24,14 @@ var render_dt = 1000.0/30.0; //30 FPS
 
 var selected_vertex_index = -1;
 var selected_triangle_index = -1;
+var render_vertices_flag = true;
 
 var boundingL = 200.0;
 
 //Color definitions
 const colorVertex = "#222222";
 const colorTriangle = "#EEEEEE";
-const colorEdge = "#777777";
+const colorEdge = "#555555";
 const colorConstrainedEdge = "#FF7777";
 
 const colorHighlightedVertex = "#FF0000";
@@ -53,11 +54,35 @@ var globalMeshData =
 
 var point_loc_search_path = [];
 
-window.onload = function() {
+window.onload = function()
+{
+  var div_controls = document.getElementById("div_controls");
+  var div_content = document.getElementById("div_content");
+  const max_height = Math.max(div_controls.offsetHeight, div_content.offsetHeight);
+    console.log("heights: " + div_controls.offsetHeight + ", " + div_content.offsetHeight);
+  // div_controls.style.height = max_height + 'px';
+  // div_content.style.height = max_height + 'px';
+  console.log("heights: " + div_controls.offsetHeight + ", " + div_content.offsetHeight);
+
   resizeCanvas();
+
+  //Register canvas event handlers
+  var canvas = document.getElementById("main_canvas");
+  canvas.onmousedown = function(e) { onCanvasMouseDown(canvas, e); };
+  canvas.onmousemove = function(e) { onCanvasMouseMove(canvas, e); };
+  canvas.onmouseup = function(e) { onCanvasMouseUp(canvas, e); };
+  canvas.onwheel = function(e) { onCanvasMouseWheel(canvas, e); };
+
+  var checkshowvertices = document.getElementById("checkboxShowVertices");
+  checkshowvertices.onclick = function ()
+  {
+    render_vertices_flag = checkshowvertices.checked;
+    renderCanvas(true);
+  };
 };
 
-window.onresize = function() {
+window.onresize = function()
+{
   resizeCanvas();
 };
 
@@ -384,7 +409,9 @@ function renderCanvas(forceRender)
 
 	renderTriangles(ctx, globalMeshData);
   renderEdges(ctx, globalMeshData);
-  renderVertices(ctx, globalMeshData);
+
+  if (render_vertices_flag)
+    renderVertices(ctx, globalMeshData);
 
 	if (selected_vertex_index >= 0)
 	{
@@ -394,7 +421,9 @@ function renderCanvas(forceRender)
 	{
 	  renderSelectedTriangle(ctx, selected_triangle_index);
 	  renderEdges(ctx, globalMeshData);
-    renderVertices(ctx, globalMeshData);
+
+    if (render_vertices_flag)
+      renderVertices(ctx, globalMeshData);
 	}
 
 	if (point_loc_search_path.length > 0)
@@ -666,6 +695,8 @@ function onCanvasMouseWheel(canvas, e)
     zoom_scale *= 1.05;
   else if(e.deltaY > 0)
     zoom_scale *= 0.952380952;
+
+  document.getElementById("zoomdisplay").innerHTML = "<b>Zoom factor:</b> " + zoom_scale.toFixed(3);
 
   renderCanvas(false);
 }

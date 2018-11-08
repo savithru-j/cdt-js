@@ -1,5 +1,6 @@
 body {
     margin: 0px;
+    height: 100%;
 }
 
 span.block {
@@ -22,7 +23,7 @@ div.canvas {
   padding-top: 10px;
   padding-left: 10px;
   padding-right: 10px;
-  background-color: #E0E0E0;
+  background-color: #C1CBDA;
 }
 
 .nav_panel_tile {
@@ -44,12 +45,14 @@ div.log {
   width: calc(50% - 12px);
   height: calc(1220px - 80vh);
   overflow-y: scroll;
+  background-color: #F0F0F0;
 }
 
 div.tri_info {
   width: calc(50% - 12px);
   height: calc(1220px - 80vh);
   overflow: hidden;
+  background-color: #F0F0F0;
 }
 
 div.locate {
@@ -67,9 +70,16 @@ button.small {
 button.big {
   width: 200px;
   height: 45px;
+  background-color: #ffcf82;
 }
 
 input.small {
   width: 80px;
   height: 20px;
+}
+
+textarea.list {
+  width:100%;
+  box-sizing: border-box;
+  margin-bottom: 10px;
 }
