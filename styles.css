@@ -1,15 +1,15 @@
 body {
-    margin: 0px;
-    height: 100%;
+  margin: 0px;
+  height: 100%;
 }
 
 span.block {
-    display: inline-block;
+  display: inline-block;
 }
 
 div.block {
-    display: inline-block;
-    vertical-align: text-top;
+  display: inline-block;
+  vertical-align: text-top;
 }
 
 div.canvas {
@@ -32,25 +32,23 @@ div.canvas {
 }
 
 .info_panel {
-  border-bottom: 2px solid #444444;
   border-right: 2px solid #444444;
   padding-top: 5px;
   padding-right: 5px;
-  padding-bottom: 5px;
   padding-left: 5px;
   background-color: #E0E0E0;
 }
 
 div.log {
   width: calc(50% - 12px);
-  height: calc(1220px - 80vh);
+  height:100%;
   overflow-y: scroll;
   background-color: #F0F0F0;
 }
 
 div.tri_info {
   width: calc(50% - 12px);
-  height: calc(1220px - 80vh);
+  height:100%;
   overflow: hidden;
   background-color: #F0F0F0;
 }

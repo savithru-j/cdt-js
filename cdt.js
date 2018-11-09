@@ -56,14 +56,6 @@ var point_loc_search_path = [];
 
 window.onload = function()
 {
-  var div_controls = document.getElementById("div_controls");
-  var div_content = document.getElementById("div_content");
-  const max_height = Math.max(div_controls.offsetHeight, div_content.offsetHeight);
-    console.log("heights: " + div_controls.offsetHeight + ", " + div_content.offsetHeight);
-  // div_controls.style.height = max_height + 'px';
-  // div_content.style.height = max_height + 'px';
-  console.log("heights: " + div_controls.offsetHeight + ", " + div_content.offsetHeight);
-
   resizeCanvas();
 
   //Register canvas event handlers
@@ -72,6 +64,12 @@ window.onload = function()
   canvas.onmousemove = function(e) { onCanvasMouseMove(canvas, e); };
   canvas.onmouseup = function(e) { onCanvasMouseUp(canvas, e); };
   canvas.onwheel = function(e) { onCanvasMouseWheel(canvas, e); };
+
+  var div_controls = document.getElementById("div_controls");
+  var div_content = document.getElementById("div_content");
+  var div_infopanel = document.getElementById("div_infopanel");
+  const max_height = Math.max(div_controls.offsetHeight, div_content.offsetHeight);
+  div_infopanel.style.height = (max_height - canvas.height) + 'px';
 
   var checkshowvertices = document.getElementById("checkboxShowVertices");
   checkshowvertices.onclick = function ()

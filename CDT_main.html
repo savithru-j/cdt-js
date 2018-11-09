@@ -24,7 +24,6 @@
     Count: <input class="small" type="number" id="txtnumrandedges" min="0" step="10" value="5">
   </div>
 
-  <!-- <div class="nav_panel_tile" style="height:5px"></div> -->
   <hr style="margin-top:10px; margin-bottom:10px;">
 
   <div>
@@ -49,7 +48,7 @@
   </div>
 
   <div style="display:table; margin-top:5px; margin-left:auto; margin-right:auto">
-    <input type="checkbox" id="checkboxConstrain" checked>Edge constraints active</input>
+    <input type="checkbox" id="checkboxConstrain" checked onclick="triangulate()">Edge constraints active</input>
     <br>
     <input type="checkbox" id="checkboxShowVertices" checked>Show vertices</input>
   </div>
@@ -57,12 +56,7 @@
   <hr style="margin-top:10px; margin-bottom:10px;">
 
   <div id="vertexinfo">Vertex list:</div>
-  <textarea id="txtvertices" class="list" rows="15" title="Enter a list of (x,y) coordinates">
-0 0
-1 0
-1 1
-0 1
-0.5 0.5</textarea>
+  <textarea id="txtvertices" class="list" rows="15" title="Enter a list of (x,y) coordinates"></textarea>
 
   <br>
   <div id="edgeinfo">Constrained edge list:</div>
@@ -75,11 +69,12 @@
   </textarea>
 
 </div>
-<div class="block" id="div_content" style="width:calc(100% - 322px); height:100%; position:absolute;">
+<div class="block" id="div_content" style="width:calc(100% - 322px); position:absolute;">
   <div style="height:80vh;">
   <canvas id="main_canvas" style="width:100%; height:80vh; position:absolute; border-bottom:2px solid #444444;"></canvas>
   </div>
-  <div class="block tri_info info_panel">
+  <div id="div_infopanel">
+  <div class="block tri_info info_panel" id="div_tri_info">
     <div id="coorddisplay"><b>Coordinates:</b> (0,0)</div>
     <div id="zoomdisplay"><b>Zoom factor:</b> 0.8</div>
     <br>
@@ -99,6 +94,7 @@
     <b>Log:</b>
     <br><br>
   </div>
+</div>
 </div>
 
 
