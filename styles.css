@@ -1,6 +1,7 @@
 body {
   margin: 0px;
   height: 100%;
+  font-family: "Trebuchet MS", sans-serif;
 }
 
 span.block {
@@ -60,15 +61,18 @@ div.locate {
 }
 
 button.small {
-  width: 200px;
+  width: 270px;
   height: 35px;
-  ali
+  font-family: inherit;
+  font-size: 90%;
 }
 
 button.big {
-  width: 200px;
+  width: 270px;
   height: 45px;
   background-color: #ffcf82;
+  font-family: inherit;
+  font-size: 90%;
 }
 
 input.small {

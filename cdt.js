@@ -26,7 +26,7 @@ var selected_vertex_index = -1;
 var selected_triangle_index = -1;
 var render_vertices_flag = true;
 
-var boundingL = 200.0;
+var boundingL = 1000.0;
 
 //Color definitions
 const colorVertex = "#222222";
@@ -39,6 +39,9 @@ const colorHighlightedTriangle = "#4DA6FF";
 const colorHighlightedAdjTriangle = "#B3D9FF";
 
 const edgeWidth = 2;
+
+var is_rand_spare_ready = false;
+var rand_spare = 0;
 
 //Data structure for storing triangulation info
 var globalMeshData =
@@ -65,12 +68,6 @@ window.onload = function()
   canvas.onmouseup = function(e) { onCanvasMouseUp(canvas, e); };
   canvas.onwheel = function(e) { onCanvasMouseWheel(canvas, e); };
 
-  var div_controls = document.getElementById("div_controls");
-  var div_content = document.getElementById("div_content");
-  var div_infopanel = document.getElementById("div_infopanel");
-  const max_height = Math.max(div_controls.offsetHeight, div_content.offsetHeight);
-  div_infopanel.style.height = (max_height - canvas.height) + 'px';
-
   var checkshowvertices = document.getElementById("checkboxShowVertices");
   checkshowvertices.onclick = function ()
   {
@@ -93,6 +90,14 @@ function resizeCanvas()
   canvas_width = canvas.width;
   canvas_height = canvas.height;
   canvas_L = Math.min(canvas_width, canvas_height);
+
+  var div_controls = document.getElementById("div_controls");
+  var div_content = document.getElementById("div_content");
+  var div_infopanel = document.getElementById("div_infopanel");
+  const max_height = Math.max(div_controls.offsetHeight, div_content.offsetHeight);
+  div_controls.style.height = max_height + 'px';
+  div_infopanel.style.height = (max_height - canvas_height) + 'px';
+
   renderCanvas(true);
 }
 
@@ -190,7 +195,7 @@ function loadVertices()
   console.log("max_coord: " + max_coord.x + ", " + max_coord.y);
   console.log("screenL: " + screenL);
 
-  document.getElementById("vertexinfo").innerHTML = "Vertex list: " + globalMeshData.vert.length + " vertices"
+  document.getElementById("vertexinfo").innerHTML = "Vertex list: " + globalMeshData.vert.length + " vertices";
 }
 
 
@@ -253,7 +258,7 @@ function loadEdges()
     }
   }
 
-  document.getElementById("edgeinfo").innerHTML = "Constrained edge list: " + globalMeshData.con_edge.length + " edges"
+  document.getElementById("edgeinfo").innerHTML = "Constrained edge list: " + globalMeshData.con_edge.length + " edges";
 }
 
 function loadInputData()
@@ -277,7 +282,8 @@ function loadInputData()
 function genRandVertices()
 {
   var txt = document.getElementById("txtnumrandvertex");
-  if (txt.value < 3)
+  const nVert = txt.value;
+  if (nVert < 3)
   {
     alert("Require at least 3 vertices.");
     return;
@@ -285,10 +291,18 @@ function genRandVertices()
 
   var txtvertices = document.getElementById("txtvertices");
   var content = "";
-  for (let i = 0; i < txt.value; i++)
+
+  if (document.getElementById("radiouniform").checked)
   {
-    content += Math.random().toFixed(10) + ", " + Math.random().toFixed(10) + "\n";
+    for (let i = 0; i < nVert; i++)
+      content += Math.random().toFixed(10) + ", " + Math.random().toFixed(10) + "\n";
   }
+  else
+  {
+    for (let i = 0; i < nVert; i++)
+      content += randn(0,1).toFixed(10) + ", " + randn(0,1).toFixed(10) + "\n";
+  }
+
   txtvertices.innerHTML = content;
   txtvertices.value = content;
 
@@ -655,7 +669,6 @@ function onCanvasMouseUp(canvas, e)
       canvas_translation.y += (last_canvas_coord.y - mouse_down_coord.y) / zoom_scale;
       prev_canvas_translation.copyFrom(canvas_translation);
       renderCanvas(true);
-      console.log(canvas_translation);
     }
     else
     {
@@ -729,7 +742,6 @@ function reset()
 
 function displayTriangulationInfo(canvas,e)
 {
-  //var ctx = canvas.getContext("2d");
   var rect = canvas.getBoundingClientRect();
   var mouse_coord = new Point((e.clientX - rect.left),(e.clientY - rect.top));
 
@@ -841,12 +853,12 @@ function triangulate()
 
   //Add super-triangle vertices (far away)
   const D = boundingL;
-  scaledverts.push(new Point(-D+0.5, -D+0.5));
-  scaledverts.push(new Point( D+0.5, -D+0.5));
-  scaledverts.push(new Point(   0.5,  D+0.5));
-  globalMeshData.vert.push(new Point(screenL*(-D+0.5) + min_coord.x, screenL*(-D+0.5) + min_coord.y));
-  globalMeshData.vert.push(new Point(screenL*( D+0.5) + min_coord.x, screenL*(-D+0.5) + min_coord.y));
-  globalMeshData.vert.push(new Point(screenL*(   0.5) + min_coord.x, screenL*( D+0.5) + min_coord.y));
+  scaledverts.push(new Point(-D+0.5, -D/Math.sqrt(3) + 0.5));
+  scaledverts.push(new Point( D+0.5, -D/Math.sqrt(3) + 0.5));
+  scaledverts.push(new Point(   0.5, 2*D/Math.sqrt(3) + 0.5));
+
+  for (let i = nVertex; i < nVertex+3; i++)
+    globalMeshData.vert.push(new Point(screenL*scaledverts[i].x + min_coord.x, screenL*scaledverts[i].y + min_coord.y));
 
 //  scaledverts.push(new Point(-D+0.5, -D+0.5));
 //  scaledverts.push(new Point( D+0.5, -D+0.5));
@@ -1001,7 +1013,91 @@ function delaunay(meshData)
   printToLog("Created " + triangles.length + " triangles.");
 }
 
+//Uses edge orientations - based on Peter Brown's Technical Report 1997
 function findEnclosingTriangle(target_vertex, meshData, ind_tri_cur)
+{
+  var vertices = meshData.scaled_vert;
+  var triangles = meshData.tri;
+  var adjacency = meshData.adj;
+  const max_hops = Math.max(10, adjacency.length);
+
+  var nhops = 0;
+  var found_tri = false;
+  var path = [];
+
+  while (!found_tri && nhops < max_hops)
+  {
+    if (ind_tri_cur === -1) //target is outside triangulation
+      return [ind_tri_cur, nhops];
+
+    var tri_cur = triangles[ind_tri_cur];
+
+    //Orientation of target wrt each edge of triangle (positive if on left of edge)
+    const orients = [getPointOrientation([vertices[tri_cur[1]],  vertices[tri_cur[2]]], target_vertex),
+                     getPointOrientation([vertices[tri_cur[2]],  vertices[tri_cur[0]]], target_vertex),
+                     getPointOrientation([vertices[tri_cur[0]],  vertices[tri_cur[1]]], target_vertex)];
+
+    if (orients[0] >= 0 && orients[1] >= 0 && orients[2] >= 0) //target is to left of all edges, so inside tri
+      return [ind_tri_cur, nhops];
+
+    var base_ind = -1;
+    for (let iedge = 0; iedge < 3; iedge++)
+    {
+      if (orients[iedge] >= 0)
+      {
+        base_ind = iedge;
+        break;
+      }
+    }
+    const base_p1_ind = (base_ind + 1) % 3;
+    const base_p2_ind = (base_ind + 2) % 3;
+
+    if (orients[base_p1_ind] >= 0 && orients[base_p2_ind] < 0)
+    {
+      ind_tri_cur = adjacency[ind_tri_cur][base_p2_ind]; //should move to the triangle opposite base_p2_ind
+      path[nhops] = vertices[tri_cur[base_ind]].add(vertices[tri_cur[base_p1_ind]]).scale(0.5);
+    }
+    else if (orients[base_p1_ind] < 0 && orients[base_p2_ind] >= 0)
+    {
+      ind_tri_cur = adjacency[ind_tri_cur][base_p1_ind]; //should move to the triangle opposite base_p1_ind
+      path[nhops] = vertices[tri_cur[base_p2_ind]].add(vertices[tri_cur[base_ind]]).scale(0.5);
+    }
+    else
+    {
+      const vec0 = vertices[tri_cur[base_p1_ind]].sub(vertices[tri_cur[base_ind]]); //vector from base_ind to base_p1_ind
+      const vec1 = target_vertex.sub(vertices[tri_cur[base_ind]]); //vector from base_ind to target_vertex
+      if (vec0.dot(vec1) > 0)
+      {
+        ind_tri_cur = adjacency[ind_tri_cur][base_p2_ind]; //should move to the triangle opposite base_p2_ind
+        path[nhops] = vertices[tri_cur[base_ind]].add(vertices[tri_cur[base_p1_ind]]).scale(0.5);
+      }
+      else
+      {
+        ind_tri_cur = adjacency[ind_tri_cur][base_p1_ind]; //should move to the triangle opposite base_p1_ind
+        path[nhops] = vertices[tri_cur[base_p2_ind]].add(vertices[tri_cur[base_ind]]).scale(0.5);
+      }
+    }
+
+    nhops++;
+  }
+
+  if(!found_tri)
+  {
+    printToLog("Failed to locate triangle containing vertex (" +
+               target_vertex.x.toFixed(4) + ", " + target_vertex.y.toFixed(4) + "). "
+               + "Input vertices may be too close to each other.");
+
+    console.log("nhops: " + (nhops-1));
+    point_loc_search_path = path;
+    renderCanvas(true);
+    throw "Could not locate the triangle that encloses (" + target_vertex.x + ", " + target_vertex.y + ")!";
+  }
+
+  return [ind_tri_cur, (nhops-1)];
+}
+
+//Uses Barycentric coordinates
+function findEnclosingTriangleOld(target_vertex, meshData, ind_tri_cur)
 {
   var vertices = meshData.scaled_vert;
   var triangles = meshData.tri;
@@ -1051,9 +1147,6 @@ function findEnclosingTriangle(target_vertex, meshData, ind_tri_cur)
 
   if(!found_tri)
   {
-    //const res_slow = findEnclosingTriangleSlow(target_vertex, meshData, ind_tri_cur)
-    //if (res_slow[0] >= 0)
-    //  return res_slow;
     printToLog("Failed to locate triangle containing vertex (" +
                target_vertex.x.toFixed(4) + ", " + target_vertex.y.toFixed(4) + "). "
                + "Input vertices may be too close to each other.");
@@ -1063,8 +1156,6 @@ function findEnclosingTriangle(target_vertex, meshData, ind_tri_cur)
     renderCanvas();
     throw "Could not locate the triangle that encloses (" + target_vertex.x + ", " + target_vertex.y + ")!";
   }
-
-  //console.log("nhops: " + (nhops-1));
 
   return [ind_tri_cur, (nhops-1)];
 }
@@ -1314,6 +1405,9 @@ function printTriangles(meshData)
     content += meshData.tri[i][0] + ", " + meshData.tri[i][1] + ", " + meshData.tri[i][2] + "\n";
 
   txttri.innerHTML = content;
+  txttri.value = content;
+
+  document.getElementById("tri_list_info").innerHTML = "Triangle list: " + meshData.tri.length + " triangles";
 }
 
 function constrainEdges(meshData)
@@ -1346,8 +1440,6 @@ function constrainEdges(meshData)
 
     if (intersections.length > 0)
       throw "Could not add edge " + iedge + " to triangulation after " + maxIter + " iterations!";
-
-    //console.log("Edge: " + iedge + ", passes: " + tmp_pass + ", max: " + maxPass);
 
   } //loop over constrained edges
 
@@ -1525,8 +1617,6 @@ function getEdgeIntersections(meshData, iedge)
         }
       }
 
-      //console.log("edge: " + iedge + ", intersection: " + intersections[intersections.length - 1]);
-
     } //while intersections not found
   } //if edge not in triangulation
 
@@ -1561,7 +1651,6 @@ function fixEdgeIntersections(meshData, intersectionList, con_edge_ind, newEdgeL
     const quad_v3 = verts[triangles[tri0_ind][(tri0_node + 2) % 3]];
 
     const isConvex = isQuadConvex(quad_v0, quad_v1, quad_v2, quad_v3);
-    //console.log("tri: " + tri0_ind + ", " + tri1_ind + ", convex: " + isConvex);
 
     if (isConvex)
     {
@@ -1716,4 +1805,26 @@ function checkCDT()
 
   var t1 = performance.now();
   console.log("CDT check completed in " + (t1 - t0).toFixed(2) + " ms.");
+}
+
+function randn(mean, stddev)
+{
+  if (is_rand_spare_ready)
+  {
+      is_rand_spare_ready = false;
+      return (mean + rand_spare*stddev);
+  }
+  else
+  {
+    let u, v, s;
+    do {
+        u = Math.random() * 2 - 1;
+        v = Math.random() * 2 - 1;
+        s = u*u + v*v;
+    } while (s >= 1 || s == 0);
+    const mul = Math.sqrt(-2.0 * Math.log(s) / s);
+    rand_spare = v*mul;
+    is_rand_spare_ready = true;
+    return (mean + stddev*u*mul);
+  }
 }
