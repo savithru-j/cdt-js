@@ -2,6 +2,15 @@
 <html>
 <head>
 <meta charset="UTF-8">
+<!-- Global site tag (gtag.js) - Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=UA-129083114-1"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'UA-129083114-1');
+</script>
 <link rel="stylesheet" href="styles.css">
 <script src="geometry.js"></script>
 <script src="cdt.js"></script>
@@ -34,6 +43,10 @@
   <div class="nav_panel_tile">
     Count: <input class="small" type="number" id="txtnumrandedges" min="0" step="10" value="10">
   </div>
+
+  <!-- <div class="nav_panel_tile">
+    <button id="btnbench" class="small" onClick="benchmark()">Benchmark</button>
+  </div> -->
 
   <hr style="margin-top:10px; margin-bottom:10px;">
 

@@ -191,9 +191,9 @@ function loadVertices()
 
   screenL = Math.max(max_coord.x - min_coord.x, max_coord.y - min_coord.y);
 
-  console.log("min_coord: " + min_coord.x + ", " + min_coord.y);
-  console.log("max_coord: " + max_coord.x + ", " + max_coord.y);
-  console.log("screenL: " + screenL);
+  //console.log("min_coord: " + min_coord.x + ", " + min_coord.y);
+  //console.log("max_coord: " + max_coord.x + ", " + max_coord.y);
+  //console.log("screenL: " + screenL);
 
   document.getElementById("vertexinfo").innerHTML = "Vertex list: " + globalMeshData.vert.length + " vertices";
 }
@@ -820,76 +820,6 @@ function triangulate()
 
   var t0 = performance.now();
 
-  const nBinsX = Math.round(Math.pow(nVertex, 0.25));
-  const nBins = nBinsX*nBinsX;
-
-  //Compute scaled vertex coordinates and assign each vertex to a bin
-  var scaledverts = [];
-  var bin_index = [];
-  for(let i = 0; i < nVertex; i++)
-  {
-    const scaled_x = (globalMeshData.vert[i].x - min_coord.x)/screenL;
-    const scaled_y = (globalMeshData.vert[i].y - min_coord.y)/screenL;
-    scaledverts.push(new Point(scaled_x, scaled_y));
-
-    const ind_i = Math.round((nBinsX-1)*scaled_x);
-    const ind_j = Math.round((nBinsX-1)*scaled_y);
-
-    let bin_id;
-    if (ind_j % 2 === 0)
-    {
-      bin_id = ind_j*nBinsX + ind_i;
-    }
-    else
-    {
-      bin_id = (ind_j+1)*nBinsX - ind_i - 1;
-    }
-    bin_index.push({ind:i,bin:bin_id});
-
-    //console.log("i: " + i + ": " + scaled_x.toFixed(3) + ", " + scaled_y.toFixed(3) + ", ind: " + ind_i + ", " + ind_j + ", bin:" + bin_id);
-  }
-
-  console.log("nBins: " + nBins);
-
-  //Add super-triangle vertices (far away)
-  const D = boundingL;
-  scaledverts.push(new Point(-D+0.5, -D/Math.sqrt(3) + 0.5));
-  scaledverts.push(new Point( D+0.5, -D/Math.sqrt(3) + 0.5));
-  scaledverts.push(new Point(   0.5, 2*D/Math.sqrt(3) + 0.5));
-
-  for (let i = nVertex; i < nVertex+3; i++)
-    globalMeshData.vert.push(new Point(screenL*scaledverts[i].x + min_coord.x, screenL*scaledverts[i].y + min_coord.y));
-
-//  scaledverts.push(new Point(-D+0.5, -D+0.5));
-//  scaledverts.push(new Point( D+0.5, -D+0.5));
-//  scaledverts.push(new Point( D+0.5,  D+0.5));
-//  scaledverts.push(new Point(-D+0.5,  D+0.5));
-//  globalMeshData.vert.push(new Point(screenL*(-D+0.5) + min_coord.x, screenL*(-D+0.5) + min_coord.y));
-//  globalMeshData.vert.push(new Point(screenL*( D+0.5) + min_coord.x, screenL*(-D+0.5) + min_coord.y));
-//  globalMeshData.vert.push(new Point(screenL*( D+0.5) + min_coord.x, screenL*( D+0.5) + min_coord.y));
-//  globalMeshData.vert.push(new Point(screenL*(-D+0.5) + min_coord.x, screenL*( D+0.5) + min_coord.y));
-
-  //Sort the vertices in ascending bin order
-  bin_index.sort(binSorter);
-
-  //for(let i = 0; i < bin_index.length; i++)
-  //  console.log("i: " + bin_index[i].ind + ", " + bin_index[i].bin);
-
-  globalMeshData.scaled_vert = scaledverts;
-  globalMeshData.bin = bin_index;
-
-  //Super-triangle connectivity
-  globalMeshData.tri = [[nVertex, (nVertex+1), (nVertex+2)]];
-  globalMeshData.adj = [[-1, -1, -1]];
-
-  //Super-quad connectivity
-//  globalMeshData.tri = [[nVertex, (nVertex+1), (nVertex+3)],
-//                        [(nVertex+2), (nVertex+3), (nVertex+1)]];
-//  globalMeshData.adj = [[1, -1, -1],
-//                        [0, -1, -1]];
-
-  globalMeshData.vert_to_tri = [];
-
   //Compute Delaunay triangulation
   delaunay(globalMeshData);
   var t_delaunay = performance.now() - t0;
@@ -931,9 +861,86 @@ function binSorter(a, b)
 	}
 }
 
+function setupDelaunay(meshData)
+{
+  const nVertex = meshData.vert.length;
+  const nBinsX = Math.round(Math.pow(nVertex, 0.25));
+  const nBins = nBinsX*nBinsX;
+
+  //Compute scaled vertex coordinates and assign each vertex to a bin
+  var scaledverts = [];
+  var bin_index = [];
+  for(let i = 0; i < nVertex; i++)
+  {
+    const scaled_x = (meshData.vert[i].x - min_coord.x)/screenL;
+    const scaled_y = (meshData.vert[i].y - min_coord.y)/screenL;
+    scaledverts.push(new Point(scaled_x, scaled_y));
+
+    const ind_i = Math.round((nBinsX-1)*scaled_x);
+    const ind_j = Math.round((nBinsX-1)*scaled_y);
+
+    let bin_id;
+    if (ind_j % 2 === 0)
+    {
+      bin_id = ind_j*nBinsX + ind_i;
+    }
+    else
+    {
+      bin_id = (ind_j+1)*nBinsX - ind_i - 1;
+    }
+    bin_index.push({ind:i,bin:bin_id});
+
+    //console.log("i: " + i + ": " + scaled_x.toFixed(3) + ", " + scaled_y.toFixed(3) + ", ind: " + ind_i + ", " + ind_j + ", bin:" + bin_id);
+  }
+
+  console.log("nBins: " + nBins);
+
+  //Add super-triangle vertices (far away)
+  const D = boundingL;
+  scaledverts.push(new Point(-D+0.5, -D/Math.sqrt(3) + 0.5));
+  scaledverts.push(new Point( D+0.5, -D/Math.sqrt(3) + 0.5));
+  scaledverts.push(new Point(   0.5, 2*D/Math.sqrt(3) + 0.5));
+
+  for (let i = nVertex; i < nVertex+3; i++)
+    meshData.vert.push(new Point(screenL*scaledverts[i].x + min_coord.x, screenL*scaledverts[i].y + min_coord.y));
+
+//  scaledverts.push(new Point(-D+0.5, -D+0.5));
+//  scaledverts.push(new Point( D+0.5, -D+0.5));
+//  scaledverts.push(new Point( D+0.5,  D+0.5));
+//  scaledverts.push(new Point(-D+0.5,  D+0.5));
+//  meshData.vert.push(new Point(screenL*(-D+0.5) + min_coord.x, screenL*(-D+0.5) + min_coord.y));
+//  meshData.vert.push(new Point(screenL*( D+0.5) + min_coord.x, screenL*(-D+0.5) + min_coord.y));
+//  meshData.vert.push(new Point(screenL*( D+0.5) + min_coord.x, screenL*( D+0.5) + min_coord.y));
+//  meshData.vert.push(new Point(screenL*(-D+0.5) + min_coord.x, screenL*( D+0.5) + min_coord.y));
+
+  //Sort the vertices in ascending bin order
+  bin_index.sort(binSorter);
+
+  //for(let i = 0; i < bin_index.length; i++)
+  //  console.log("i: " + bin_index[i].ind + ", " + bin_index[i].bin);
+
+  meshData.scaled_vert = scaledverts;
+  meshData.bin = bin_index;
+
+  //Super-triangle connectivity
+  meshData.tri = [[nVertex, (nVertex+1), (nVertex+2)]];
+  meshData.adj = [[-1, -1, -1]];
+
+  //Super-quad connectivity
+//  meshData.tri = [[nVertex, (nVertex+1), (nVertex+3)],
+//                  [(nVertex+2), (nVertex+3), (nVertex+1)]];
+//  meshData.adj = [[1, -1, -1],
+//                  [0, -1, -1]];
+
+  meshData.vert_to_tri = [];
+}
+
 //Function for computing the unconstrained Delaunay triangulation
 function delaunay(meshData)
 {
+  //Sort input vertices and setup super-triangle
+  setupDelaunay(meshData);
+
   var verts = meshData.scaled_vert;
   var bins = meshData.bin;
   var triangles = meshData.tri;
@@ -1827,4 +1834,50 @@ function randn(mean, stddev)
     is_rand_spare_ready = true;
     return (mean + stddev*u*mul);
   }
+}
+
+function benchmark()
+{
+  const nrepeat = 50;
+  const ncase = 1; //50;
+  const nwarmup = 5;
+
+  let t_bench = 0;
+  let n = 0;
+  for (let i = 0; i < ncase; i++)
+  {
+    //Clear mesh data
+  	globalMeshData.vert = [];
+    globalMeshData.scaled_vert = [];
+    globalMeshData.bin = [];
+    globalMeshData.tri = [];
+    globalMeshData.adj = [];
+    globalMeshData.con_edge = [];
+    globalMeshData.vert_to_tri = [];
+
+    genRandVertices();
+    genRandEdges();
+
+    let t_avg = 0;
+    for (let j = 0; j < nrepeat + nwarmup; j++)
+    {
+      const tb0 = performance.now();
+      delaunay(globalMeshData);
+      constrainEdges(globalMeshData);
+      const dt = performance.now() - tb0;
+
+      console.log("Delaunay triangulation in " + dt.toFixed(2) + " ms.");
+      if (j >= nwarmup)
+        t_avg += dt;
+    }
+    t_avg /= nrepeat;
+    console.log("Avg time: " + t_avg.toFixed(2) + " ms.");
+
+    t_bench += t_avg;
+  }
+
+  t_bench /= ncase;
+  console.log("Avg bench time: " + t_bench);
+
+
 }
