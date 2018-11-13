@@ -1,6 +1,8 @@
 **CDT-JS** is an interactive web app for generating constrained Delaunay triangulations of 2D points, written in JavaScript.
 
-### Check out the [**live demo**](https://savithru-j.github.io/cdt-js/mesher.html).
+
+### Check out the [**app here**](https://savithru-j.github.io/cdt-js/mesher.html).
+[![CDT](banner_1024.png)](https://savithru-j.github.io/cdt-js/mesher.html)
 
 ### How to use
 
